@@ -2,7 +2,7 @@
 
 ## Decisión
 
-Frontend Angular organizado por funcionalidades (Feature-Based Architecture), con principios de Clean Architecture dentro de cada funcionalidad. No existe una carpeta `layout`: la composición general corresponde a `App` y los componentes visuales reutilizables a `shared/ui`.
+Frontend Angular organizado por funcionalidades (Feature-Based Architecture), con principios de Clean Architecture dentro de cada funcionalidad. No existe una carpeta `layout`: la composición general corresponde a la página `dashboard` con un `router-outlet` hijo y los componentes visuales reutilizables a `shared/ui`.
 
 Esta organización agrupa áreas del negocio; no es una implementación estricta de Vertical Slice por cada acción. Los casos de uso representan las acciones dentro de cada área.
 
@@ -18,14 +18,16 @@ src/app/
 ├── shared/
 │   └── ui/
 ├── features/
-│   ├── ranchos/
-│   ├── usuarios/
-│   ├── animales/
-│   ├── sanidad/
-│   ├── reproduccion/
-│   ├── manejo/
-│   ├── economia/
-│   └── reportes/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── ranches/
+│   ├── users/
+│   ├── animals/
+│   ├── health/
+│   ├── breeding/
+│   ├── management/
+│   ├── finance/
+│   └── reports/
 ├── app.ts
 ├── app.config.ts
 └── app.routes.ts
@@ -34,29 +36,31 @@ src/app/
 Cada funcionalidad cuenta con:
 
 ```text
-sanidad/
+health/
 ├── domain/          # Entidades, reglas y contratos de repositorios
 ├── application/     # Casos de uso que coordinan reglas y repositorios
 ├── infrastructure/  # Adaptadores HTTP, DTO y conversión de datos
 └── presentation/    # Páginas, componentes y estado de la interfaz
 ```
 
-Las rutas de una funcionalidad se incorporarán como `<funcionalidad>.routes.ts` cuando existan páginas reales. Las rutas secundarias se cargarán bajo demanda. No se crean pantallas ni servicios vacíos para representar funciones todavía no implementadas.
+Los nombres de carpetas, clases y rutas usan inglés; los textos visibles de la interfaz usan español. El dashboard compone el header y el sidebar globales de `shared/ui`, y carga las páginas mediante un `router-outlet` hijo. Su ruta principal es `/dashboard/overview`.
+
+Las rutas secundarias se cargan bajo demanda. Las opciones pendientes comparten una pantalla informativa temporal en `shared/ui/section-placeholder`, que se reemplazará por las páginas de cada funcionalidad al implementarlas. Esta pantalla no contiene lógica de negocio ni simula datos.
 
 ## Responsabilidades de negocio
 
-| Funcionalidad | Responsabilidad | Ejemplos de casos de uso |
-| --- | --- | --- |
-| ranchos | Rancho, corrales y ubicaciones | Registrar corral, consultar rancho |
-| usuarios | Personas y asignación de roles por rancho | Asignar rol, consultar miembros |
-| animales | Identidad, nacimiento, estado y consulta del historial integral | Registrar animal, consultar ficha e historial |
-| sanidad | Observaciones, diagnósticos, tratamientos y seguimiento | Reportar hallazgo, registrar diagnóstico, registrar aplicación |
-| reproduccion | Cruzas, gestaciones, partos, parentesco y desempeño reproductivo | Registrar cruza, registrar parto, consultar genealogía |
-| manejo | Pesajes, alimentación, movimientos e incidentes de manejo | Registrar peso, trasladar animal, registrar incidente |
-| economia | Gastos, ingresos, compras y ventas | Registrar gasto, registrar venta |
-| reportes | Lecturas agregadas del hato y sus resultados | Consultar pendientes, consultar indicadores económicos |
+| Funcionalidad | Responsabilidad                                                  | Ejemplos de casos de uso                                       |
+| ------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| ranches       | Rancho, corrales y ubicaciones                                   | Registrar corral, consultar rancho                             |
+| users         | Personas y asignación de roles por rancho                        | Asignar rol, consultar miembros                                |
+| animals       | Identidad, nacimiento, estado y consulta del historial integral  | Registrar animal, consultar ficha e historial                  |
+| health        | Observaciones, diagnósticos, tratamientos y seguimiento          | Reportar hallazgo, registrar diagnóstico, registrar aplicación |
+| breeding      | Cruzas, gestaciones, partos, parentesco y desempeño reproductivo | Registrar cruza, registrar parto, consultar genealogía         |
+| management    | Pesajes, alimentación, movimientos e incidentes de manejo        | Registrar peso, trasladar animal, registrar incidente          |
+| finance       | Gastos, ingresos, compras y ventas                               | Registrar gasto, registrar venta                               |
+| reports       | Lecturas agregadas del hato y sus resultados                     | Consultar pendientes, consultar indicadores económicos         |
 
-`animales` conserva la identidad del animal; `reproduccion` gestiona los vínculos genealógicos. El historial integral reúne registros de las distintas áreas sin duplicar su propiedad. Las ventas pertenecen a `economia`, pero deben coordinar el cambio de estado del animal en el backend dentro de una transacción.
+`animals` conserva la identidad del animal; `breeding` gestiona los vínculos genealógicos. El historial integral reúne registros de las distintas áreas sin duplicar su propiedad. Las ventas pertenecen a `finance`, pero deben coordinar el cambio de estado del animal en el backend dentro de una transacción.
 
 ## Reglas de dependencia
 
@@ -79,6 +83,12 @@ El contrato es propiedad del dominio; su implementación está en infraestructur
 
 ## Backend propuesto
 
+### Login temporal
+
+La página `/login` contiene únicamente inicio de sesión, sin registro. `features/auth/presentation` gestiona el formulario y `core/auth` contiene la sesión compartida y los guards. El acceso de demostración se valida localmente; todavía no hay autenticación de servidor. La sesión guarda únicamente la identidad en `sessionStorage`, nunca la contraseña, y se restaura al recargar la pestaña.
+
+El dashboard y sus rutas hijas requieren sesión. El login redirige a la sección solicitada dentro del dashboard; cerrar sesión limpia el almacenamiento y vuelve a `/login`. Antes de desplegar con datos reales, la validación de credenciales y la autorización deben trasladarse al backend; los guards locales no constituyen una barrera de seguridad.
+
 El repositorio actual contiene solo el frontend. Se propone un backend como monolito modular, con las mismas áreas de negocio y una base de datos relacional. Su lenguaje y framework quedan pendientes de elección.
 
 El backend es responsable de permisos, validaciones definitivas, transacciones, persistencia e historial de auditoría. Los guards y botones de Angular facilitan la navegación, pero no sustituyen la autorización del servidor. Cada operación verifica el acceso del usuario al rancho correspondiente.
@@ -99,7 +109,9 @@ La primera versión puede operar con conexión. El registro sin internet es una 
 ## Convenciones de desarrollo
 
 - Generar componentes con Angular CLI: `ng g c ruta --skip-tests`.
-- Ejemplo: `ng g c features/animales/presentation/pages/listado-animales --skip-tests`.
+- Los componentes usan clases Tailwind en sus templates y no tienen archivos CSS. Angular CLI configura `style: none`. `src/styles.css` es únicamente la entrada de Tailwind, la variante de modo oscuro y la definición de Poppins.
+- El selector del header alterna modo claro y oscuro y conserva la preferencia en almacenamiento local. El menú del perfil contiene la acción de cerrar sesión.
+- Ejemplo: `ng g c features/animals/presentation/pages/animal-list --skip-tests`.
 - `angular.json` configura `skipTests: true` para componentes nuevos. Los tests existentes no se eliminan.
 - Crear archivos y subcarpetas adicionales cuando una funcionalidad los necesite; evitar capas de delegación sin propósito.
 - Verificar la compilación después de cambios estructurales. Incorporar pruebas específicas cuando se implementen reglas relevantes como permisos, genealogía o rectificaciones.

@@ -2,6 +2,8 @@
   "name": "pelifolk",
   "version": "0.0.0",
   "scripts": {
+    "format": "prettier --write src docs README.md angular.json package.json tsconfig*.json .prettierrc .vscode/*.json",
+    "format:check": "prettier --check src docs README.md angular.json package.json tsconfig*.json .prettierrc .vscode/*.json",
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
@@ -17,6 +19,7 @@
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
+    "lucide-angular": "^1.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

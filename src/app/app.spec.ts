@@ -1,19 +1,53 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { App } from './app';
 import { provideRouter, Router } from '@angular/router';
 import { routes } from './app.routes';
-import { Session } from './core/auth/session';
+import { Session, SessionUser } from './core/auth/session';
+import { API_URL } from './core/http/api-url';
+
+const USER: SessionUser = {
+  id: 'test-user',
+  name: 'Juan',
+  middle_name: 'Carlos',
+  paternal_lastname: 'Lopez',
+  maternal_lastname: 'Perez',
+  email: 'juan@example.com',
+  phone: null,
+  active: true,
+  role_id: 'test-role',
+  role_name: 'owner',
+  permissions: [],
+};
+const PASSWORD = 'Created-user-password123';
+
+async function signIn(): Promise<void> {
+  const result = TestBed.inject(Session).login(USER.email, PASSWORD);
+  TestBed.inject(HttpTestingController)
+    .expectOne(`${TestBed.inject(API_URL)}/auth/login`)
+    .flush({
+      access_token: 'test-token',
+      token_type: 'bearer',
+      expires_in: 1800,
+      user: USER,
+    });
+  await result;
+}
 
 describe('App', () => {
   beforeEach(async () => {
     sessionStorage.removeItem('pelifolk-session');
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes)],
+      providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
-  afterEach(() => sessionStorage.removeItem('pelifolk-session'));
+  afterEach(() => {
+    TestBed.inject(HttpTestingController).verify();
+    sessionStorage.removeItem('pelifolk-session');
+  });
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
@@ -22,7 +56,7 @@ describe('App', () => {
   });
 
   it('should render the dashboard and navigate to a section', async () => {
-    TestBed.inject(Session).login('admin@pelifolk.com', 'Pelifolk2026');
+    await signIn();
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const router = TestBed.inject(Router);
@@ -35,16 +69,16 @@ describe('App', () => {
       'Pelifolk, inicio',
     );
     expect(compiled.querySelector('main h1')?.textContent).toBe('Resumen del rancho');
-    const animalsLink = compiled.querySelector<HTMLAnchorElement>(
-      'app-sidebar a[href="/dashboard/animals"]',
+    const reportsLink = compiled.querySelector<HTMLAnchorElement>(
+      'app-sidebar a[href="/dashboard/reports"]',
     );
-    expect(animalsLink).toBeTruthy();
-    animalsLink!.click();
+    expect(reportsLink).toBeTruthy();
+    reportsLink!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(router.url).toBe('/dashboard/animals');
-    expect(compiled.querySelector('main h1')?.textContent).toBe('Animales');
-    expect(animalsLink!.getAttribute('aria-current')).toBe('page');
+    expect(router.url).toBe('/dashboard/reports');
+    expect(compiled.querySelector('main h1')?.textContent).toBe('Reportes');
+    expect(reportsLink!.getAttribute('aria-current')).toBe('page');
   });
 
   it('should switch themes and sign out from the profile dropdown', async () => {
@@ -53,7 +87,7 @@ describe('App', () => {
     try {
       document.documentElement.classList.remove('dark');
       const session = TestBed.inject(Session);
-      session.setUser({ id: 'test-user', name: 'Usuario de prueba' });
+      await signIn();
       const fixture = TestBed.createComponent(App);
       fixture.detectChanges();
       await TestBed.inject(Router).navigateByUrl('/dashboard/overview');
@@ -72,7 +106,7 @@ describe('App', () => {
       )!;
       profile.click();
       fixture.detectChanges();
-      expect(element.querySelector('#profile-options')?.textContent).toContain('Usuario de prueba');
+      expect(element.querySelector('#profile-options')?.textContent).toContain('Juan');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       fixture.detectChanges();
       expect(profile.getAttribute('aria-expanded')).toBe('false');
@@ -80,6 +114,9 @@ describe('App', () => {
       fixture.detectChanges();
       element.querySelector<HTMLButtonElement>('#profile-options button')!.click();
       fixture.detectChanges();
+      TestBed.inject(HttpTestingController)
+        .expectOne(`${TestBed.inject(API_URL)}/auth/logout`)
+        .flush(null, { status: 204, statusText: 'No Content' });
       expect(session.user()).toBeNull();
       expect(element.querySelector('#profile-options')).toBeNull();
       await fixture.whenStable();
@@ -105,24 +142,81 @@ describe('App', () => {
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
     };
-    fill('email', 'admin@pelifolk.com');
+    fill('email', USER.email);
     fill('password', 'incorrect');
     element
       .querySelector('form')!
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     fixture.detectChanges();
-    expect(element.querySelector('[role="alert"]')?.textContent).toContain('incorrectos');
-    expect(TestBed.inject(Session).user()).toBeNull();
-    fill('password', 'Pelifolk2026');
+    expect(element.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
     element
       .querySelector('form')!
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    const request = TestBed.inject(HttpTestingController).expectOne(
+      `${TestBed.inject(API_URL)}/auth/login`,
+    );
+    expect(request.request.body).toEqual({ email: USER.email, password: 'incorrect' });
+    request.flush(
+      { detail: 'Invalid email or password' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    await expect
+      .poll(() => {
+        fixture.detectChanges();
+        return element.querySelector('[role="alert"]')?.textContent;
+      })
+      .toContain('incorrectos');
+    expect(TestBed.inject(Session).user()).toBeNull();
+    fill('password', PASSWORD);
+    element
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    TestBed.inject(HttpTestingController)
+      .expectOne(`${TestBed.inject(API_URL)}/auth/login`)
+      .flush({
+        access_token: 'test-token',
+        token_type: 'bearer',
+        expires_in: 1800,
+        user: USER,
+      });
+    await expect.poll(() => router.url).toBe('/dashboard/animals');
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(router.url).toBe('/dashboard/animals');
-    expect(TestBed.inject(Session).user()?.name).toBe('Administrador');
-    expect(sessionStorage.getItem('pelifolk-session')).not.toContain('Pelifolk2026');
+    expect(TestBed.inject(Session).user()?.name).toBe('Juan');
+    expect(sessionStorage.getItem('pelifolk-session')).not.toContain(PASSWORD);
     await router.navigateByUrl('/login');
     expect(router.url).toBe('/dashboard/overview');
+  });
+
+  it('shows a connection error and allows retrying when the API is unavailable', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await TestBed.inject(Router).navigateByUrl('/login');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    for (const [id, value] of [
+      ['email', USER.email],
+      ['password', PASSWORD],
+    ]) {
+      const input = element.querySelector<HTMLInputElement>(`#${id}`)!;
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    element
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    TestBed.inject(HttpTestingController)
+      .expectOne(`${TestBed.inject(API_URL)}/auth/login`)
+      .error(new ProgressEvent('error'));
+    await expect
+      .poll(() => {
+        fixture.detectChanges();
+        return element.querySelector('[role="alert"]')?.textContent;
+      })
+      .toContain('No se pudo conectar');
+    expect(element.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+    expect(TestBed.inject(Session).user()).toBeNull();
+    expect(TestBed.inject(Router).url).toBe('/login');
   });
 });

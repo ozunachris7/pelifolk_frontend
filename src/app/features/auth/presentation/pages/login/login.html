@@ -49,6 +49,13 @@
         </p>
 
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="space-y-6">
+          @if (notice) {
+            <p
+              role="status"
+              class="rounded-lg bg-green-50 p-3 text-xs leading-6 text-green-900 dark:bg-green-950/30 dark:text-green-200">
+              {{ notice }}
+            </p>
+          }
           <div>
             <label for="email" class="mb-2.5 block text-xs font-medium">Correo electrónico</label>
             <input

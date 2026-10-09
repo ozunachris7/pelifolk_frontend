@@ -81,17 +81,21 @@ Página → caso de uso → contrato de repositorio → adaptador HTTP → API
 
 El contrato es propiedad del dominio; su implementación está en infraestructura. La dirección de ejecución no cambia la dirección de dependencia del código.
 
-## Backend propuesto
+## Backend y autenticación
 
-### Login temporal
+### Login conectado
 
-La página `/login` contiene únicamente inicio de sesión, sin registro. `features/auth/presentation` gestiona el formulario y `core/auth` contiene la sesión compartida y los guards. El acceso de demostración se valida localmente; todavía no hay autenticación de servidor. La sesión guarda únicamente la identidad en `sessionStorage`, nunca la contraseña, y se restaura al recargar la pestaña.
+La página `/login` contiene únicamente inicio de sesión, sin registro. `features/auth/presentation` gestiona el formulario y `core/auth` contiene la sesión compartida y los guards. `Session` envía las credenciales al backend con HttpClient. La sesión guarda el token y su vencimiento en `sessionStorage`, nunca la contraseña. Al recargar, obtiene la identidad con `/api/v1/auth/me` antes de permitir el acceso al dashboard. La URL del backend se configura en `core/http/api-url.ts`.
 
-El dashboard y sus rutas hijas requieren sesión. El login redirige a la sección solicitada dentro del dashboard; cerrar sesión limpia el almacenamiento y vuelve a `/login`. Antes de desplegar con datos reales, la validación de credenciales y la autorización deben trasladarse al backend; los guards locales no constituyen una barrera de seguridad.
+El dashboard y sus rutas hijas requieren sesión. El login redirige a la sección solicitada dentro del dashboard; cerrar sesión limpia el almacenamiento, solicita la invalidación del token al backend y vuelve a `/login`. Los guards locales no sustituyen la autorización de cada endpoint en el servidor.
 
-El repositorio actual contiene solo el frontend. Se propone un backend como monolito modular, con las mismas áreas de negocio y una base de datos relacional. Su lenguaje y framework quedan pendientes de elección.
+El repositorio actual contiene el frontend. El backend está en `pelifolk_backend`, usa Python/FastAPI y MySQL, e implementa autenticación, usuarios y roles. El frontend conecta login, validación de sesión, logout y administración de usuarios, roles y permisos; los módulos ganaderos siguen pendientes.
 
-El backend es responsable de permisos, validaciones definitivas, transacciones, persistencia e historial de auditoría. Los guards y botones de Angular facilitan la navegación, pero no sustituyen la autorización del servidor. Cada operación verifica el acceso del usuario al rancho correspondiente.
+### Administración de accesos
+
+`features/users/domain` define los modelos, contrato de persistencia y reglas para mostrar acciones permitidas. `application/ManageAccess` coordina operaciones y valida los permisos locales antes de enviarlas. `infrastructure/HttpAccessRepository` implementa el contrato HTTP; los proveedores de las rutas conectan el repositorio con el caso de uso. `presentation` contiene las pantallas de usuarios y roles, con formularios y estados de carga, error y confirmación. El interceptor en `core/http` adjunta el Bearer solo a la API configurada, gestiona sesiones rechazadas y refresca la identidad cuando cambian sus permisos. Las restricciones definitivas siguen en el backend.
+
+El backend es responsable de permisos, validaciones definitivas, transacciones, persistencia e historial de auditoría. Los guards y botones de Angular facilitan la navegación, pero no sustituyen la autorización del servidor. La separación de datos por rancho todavía no está implementada.
 
 ## Historial y trazabilidad
 

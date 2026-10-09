@@ -45,7 +45,7 @@
       <nav
         aria-label="Accesos a las áreas del rancho"
         class="divide-y divide-stone-200 dark:divide-white/10">
-        @for (section of sections; track section.path) {
+        @for (section of sections(); track section.path) {
           <a
             class="group flex items-center justify-between gap-4 py-4 text-sm text-stone-600 transition hover:text-green-800 focus-visible:outline-2 focus-visible:outline-amber-600 dark:text-stone-300 dark:hover:text-white"
             [routerLink]="['/dashboard', section.path]">

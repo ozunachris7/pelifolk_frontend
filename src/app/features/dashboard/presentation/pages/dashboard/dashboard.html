@@ -4,6 +4,7 @@
   >Ir al contenido</a
 >
 <app-header
+  class="sticky top-0 z-30 block"
   [userName]="session.user()?.name ?? null"
   [photoUrl]="session.user()?.photoUrl ?? null"
   [signedIn]="session.user() !== null"
@@ -20,7 +21,7 @@
   </button>
   <aside
     id="dashboard-sidebar"
-    class="border-b border-stone-200 dark:border-white/10 md:block md:border-r md:border-b-0"
+    class="border-b border-stone-200 dark:border-white/10 md:sticky md:top-[81px] md:block md:h-[calc(100dvh-81px)] md:w-[240px] md:self-start md:overflow-hidden md:border-r md:border-b-0"
     [class.hidden]="!sidebarOpen()">
     <app-sidebar class="block h-full" (navigate)="sidebarOpen.set(false)" />
   </aside>

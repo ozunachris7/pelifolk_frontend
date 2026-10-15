@@ -78,6 +78,26 @@ async function open(f: ComponentFixture<ExitList>) {
     })
     .toBe(2);
 }
+async function flushWithdrawal(f: ComponentFixture<ExitList>, status = 'complete') {
+  const requests = http.match((r) => r.url.includes('/withdrawal'));
+  expect(requests.length).toBeGreaterThan(0);
+  for (const request of requests)
+    request.flush({
+      animal: ANIMAL,
+      status,
+      as_of: request.request.params.get('date'),
+      release_date: status === 'pending' ? '2024-06-08' : '2024-01-01',
+      treatment_count: 1,
+      unknown_count: 0,
+      in_treatment: false,
+    });
+  await expect
+    .poll(() => {
+      f.detectChanges();
+      return element(f).textContent;
+    })
+    .toContain(status === 'pending' ? 'Retiro pendiente' : 'Sin retiro pendiente según registros');
+}
 function submit(f: ComponentFixture<ExitList>) {
   element(f)
     .querySelector('dialog form')!
@@ -120,6 +140,7 @@ describe('Herd exits', () => {
     await open(f);
     fill(f, 'exit-animal', 'a1');
     fill(f, 'exit-date', '2024-06-01');
+    await flushWithdrawal(f, 'pending');
     fill(f, 'exit-reason', ' Venta a otro rancho. ');
     submit(f);
     const req = http.expectOne(`${api}/exits`);
@@ -149,11 +170,45 @@ describe('Herd exits', () => {
       })
       .toContain('Venta a otro rancho.');
   });
+  it('ignores stale withdrawal replies and requires a successful consultation', async () => {
+    await login();
+    const f = await fixture();
+    await open(f);
+    fill(f, 'exit-animal', 'a1');
+    const first = http.expectOne((r) => r.url.includes('/withdrawal'));
+    fill(f, 'exit-date', '2024-06-01');
+    const latest = http.expectOne((r) => r.url.includes('/withdrawal'));
+    latest.flush({ animal: ANIMAL, status: 'unknown', release_date: null, unknown_count: 1 });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('Periodo por verificar');
+    first.flush({ animal: ANIMAL, status: 'complete', release_date: '2024-01-01' });
+    await Promise.resolve();
+    f.detectChanges();
+    expect(element(f).textContent).not.toContain('Sin retiro pendiente según registros');
+    fill(f, 'exit-date', '2024-06-02');
+    http
+      .expectOne((r) => r.url.includes('/withdrawal'))
+      .flush({}, { status: 503, statusText: 'Unavailable' });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('No se puede determinar');
+    fill(f, 'exit-reason', 'Venta');
+    submit(f);
+    http.expectNone((r) => r.method === 'POST');
+  });
   it('preserves the form when another person has already registered an exit', async () => {
     await login();
     const f = await fixture();
     await open(f);
     fill(f, 'exit-animal', 'a1');
+    await flushWithdrawal(f);
     fill(f, 'exit-reason', 'Salida por venta');
     submit(f);
     http

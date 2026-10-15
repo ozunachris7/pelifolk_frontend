@@ -218,11 +218,52 @@
         @if (formError()) {
           <p role="alert" class="text-sm text-red-600">{{ formError() }}</p>
         }
+        @if (
+          ['sale', 'slaughter'].includes(form.controls.exit_type.value) &&
+          form.controls.animal_id.value
+        ) {
+          <aside
+            class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-stone-800"
+            aria-live="polite">
+            <p class="font-medium">Retiro sanitario a la fecha de salida</p>
+            @if (withdrawalLoading()) {
+              <p class="mt-2">Consultando tratamientos…</p>
+            } @else if (withdrawalError()) {
+              <p class="mt-2">{{ withdrawalError() }} No se puede determinar el retiro.</p>
+              <button type="button" class="mt-2 underline" (click)="checkWithdrawal()">
+                Volver a consultar
+              </button>
+            } @else if (withdrawal(); as w) {
+              <p class="mt-2">{{ withdrawalLabel(w.status) }}</p>
+              @if (w.release_date) {
+                <p>
+                  Fecha estimada sin retiro pendiente: {{ w.release_date | date: 'dd/MM/yyyy' }}
+                </p>
+              }
+              @if (w.in_treatment) {
+                <p>El tratamiento aún está en curso; la fecha es una estimación.</p>
+              }
+              @if (w.status === 'unknown') {
+                <p>
+                  Hay registros sin un periodo histórico verificable. Consulta la etiqueta y al
+                  veterinario.
+                </p>
+              }
+              @if (w.status === 'pending') {
+                <p>
+                  Comunica el retiro pendiente al comprador; revisa el destino antes de registrar un
+                  sacrificio.
+                </p>
+              }
+              <p class="mt-2 text-xs">El registro de salida no certifica aptitud para consumo.</p>
+            }
+          </aside>
+        }
         <div class="flex justify-end gap-3 border-t border-stone-200 pt-5 dark:border-white/10">
           <button type="button" (click)="closeForm()" class="px-4 py-3 text-xs">Cancelar</button
           ><button
             type="submit"
-            [disabled]="!optionReady()"
+            [disabled]="!optionReady() || withdrawalLoading() || !!withdrawalError()"
             class="rounded-lg bg-green-900 px-4 py-3 text-xs font-medium text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-950">
             {{ busy() ? 'Guardando…' : 'Guardar salida' }}
           </button>

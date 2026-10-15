@@ -28,6 +28,20 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       class="border-b-2 border-transparent py-3"
       >Programas y avisos</a
     >
+    <a
+      routerLink="/dashboard/health/withdrawals"
+      routerLinkActive="border-green-800"
+      ariaCurrentWhenActive="page"
+      class="border-b-2 border-transparent py-3"
+      >Retiro sanitario</a
+    >
+    <a
+      routerLink="/dashboard/health/reviews"
+      routerLinkActive="border-green-800"
+      ariaCurrentWhenActive="page"
+      class="border-b-2 border-transparent py-3"
+      >Revisiones clínicas</a
+    >
   </nav>`,
 })
 export class HealthNav {}

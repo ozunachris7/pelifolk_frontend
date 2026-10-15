@@ -1,3 +1,4 @@
+import { FeedingRepository } from '../feeding/infrastructure/feeding-repository';
 import { FinanceRepository } from '../finance/infrastructure/finance-repository';
 import { ExitRepository } from '../exits/infrastructure/exit-repository';
 import { BreedingRepository } from '../breeding/infrastructure/breeding-repository';
@@ -24,10 +25,26 @@ export const dashboardRoutes: Routes = [
           import('../animals/presentation/animal-list').then((m) => m.AnimalList),
       },
       {
+        path: 'genealogy',
+        title: 'Genealogía | Pelifolk',
+        loadComponent: () => import('../animals/presentation/genealogy').then((m) => m.Genealogy),
+      },
+      {
+        path: 'genealogy/:id',
+        title: 'Genealogía | Pelifolk',
+        loadComponent: () => import('../animals/presentation/genealogy').then((m) => m.Genealogy),
+      },
+      {
         path: 'breeds',
         title: 'Razas | Pelifolk',
         providers: ANIMAL_PROVIDERS,
         loadComponent: () => import('../animals/presentation/breed-list').then((m) => m.BreedList),
+      },
+      {
+        path: 'locations/movements',
+        title: 'Ubicación y traslados | Pelifolk',
+        loadComponent: () =>
+          import('../organization/presentation/movements').then((m) => m.Movements),
       },
       {
         path: 'locations',
@@ -51,6 +68,11 @@ export const dashboardRoutes: Routes = [
           import('../organization/presentation/group-detail').then((m) => m.GroupDetail),
       },
       {
+        path: 'management/weanings',
+        title: 'Destetes | Pelifolk',
+        loadComponent: () => import('../weaning/weaning-list').then((m) => m.WeaningList),
+      },
+      {
         path: 'management',
         title: 'Pesajes | Pelifolk',
         providers: [WeightRepository],
@@ -71,11 +93,35 @@ export const dashboardRoutes: Routes = [
           import('../health/presentation/product-list').then((m) => m.ProductList),
       },
       {
+        path: 'health/reviews',
+        title: 'Revisiones clínicas | Pelifolk',
+        loadComponent: () => import('../health/presentation/review-list').then((m) => m.ReviewList),
+      },
+      {
+        path: 'health/withdrawals',
+        title: 'Retiro sanitario | Pelifolk',
+        loadComponent: () =>
+          import('../health/presentation/withdrawal-list').then((m) => m.WithdrawalList),
+      },
+      {
         path: 'health/programs',
         title: 'Programas sanitarios | Pelifolk',
         providers: [HealthRepository],
         loadComponent: () =>
           import('../health/presentation/program-list').then((m) => m.ProgramList),
+      },
+      {
+        path: 'breeding/performance',
+        title: 'Desempeño de reproductores | Pelifolk',
+        loadComponent: () =>
+          import('../breeding/presentation/performance').then((m) => m.Performance),
+      },
+      {
+        path: 'breeding/upcoming-births',
+        title: 'Partos próximos | Pelifolk',
+        providers: [BreedingRepository],
+        loadComponent: () =>
+          import('../breeding/presentation/upcoming-births').then((m) => m.UpcomingBirths),
       },
       {
         path: 'breeding',
@@ -91,11 +137,23 @@ export const dashboardRoutes: Routes = [
         loadComponent: () => import('../exits/presentation/exit-list').then((m) => m.ExitList),
       },
       {
+        path: 'finance/costs',
+        title: 'Costos por animal o lote | Pelifolk',
+        loadComponent: () => import('../finance/presentation/costs').then((m) => m.Costs),
+      },
+      {
         path: 'finance',
         title: 'Economía | Pelifolk',
         providers: [FinanceRepository],
         loadComponent: () =>
           import('../finance/presentation/finance-list').then((m) => m.FinanceList),
+      },
+      {
+        path: 'feeding',
+        title: 'Alimentación | Pelifolk',
+        providers: [FeedingRepository],
+        loadComponent: () =>
+          import('../feeding/presentation/feeding-list').then((m) => m.FeedingList),
       },
       { path: 'ranches', pathMatch: 'full', redirectTo: 'locations' },
       {
@@ -113,6 +171,16 @@ export const dashboardRoutes: Routes = [
           import('../users/presentation/pages/role-list/role-list').then((m) => m.RoleList),
       },
       {
+        path: 'audit',
+        title: 'Auditoría | Pelifolk',
+        loadComponent: () => import('../audit/presentation/audit-list').then((m) => m.AuditList),
+      },
+      {
+        path: 'reports',
+        title: 'Reportes | Pelifolk',
+        loadComponent: () => import('../reports/report-home').then((m) => m.ReportHome),
+      },
+      {
         path: 'overview',
         title: 'Resumen | Pelifolk',
         loadComponent: () =>
@@ -123,16 +191,20 @@ export const dashboardRoutes: Routes = [
           (item) =>
             ![
               'overview',
+              'reports',
+              'audit',
               'users',
               'roles',
               'animals',
               'breeds',
+              'genealogy',
               'locations',
               'groups',
               'management',
               'breeding',
               'exits',
               'finance',
+              'feeding',
               'health',
             ].includes(item.path),
         )

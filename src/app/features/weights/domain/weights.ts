@@ -4,6 +4,7 @@ export interface AnimalOption {
   siniiga: string | null;
 }
 export interface Weight {
+  is_weaning?: boolean;
   id: string;
   animal: AnimalOption;
   date: string;

@@ -10,7 +10,9 @@ import {
   Users,
   ShieldCheck,
   Wallet,
+  Wheat,
   LogOut,
+  ClipboardList,
 } from 'lucide-angular';
 
 export const dashboardNavigation: {
@@ -31,6 +33,13 @@ export const dashboardNavigation: {
     label: 'Animales',
     icon: PawPrint,
     description: 'Identificación e historial de cada animal del hato.',
+    permission: 'animals:read',
+  },
+  {
+    path: 'genealogy',
+    label: 'Genealogía',
+    icon: Network,
+    description: 'Padres, abuelos y descendientes de cada animal.',
     permission: 'animals:read',
   },
   {
@@ -69,6 +78,13 @@ export const dashboardNavigation: {
     permission: 'exits:read',
   },
   {
+    path: 'feeding',
+    label: 'Alimentación',
+    icon: Wheat,
+    description: 'Alimentos, precios y consumo por animal o lote.',
+    permission: 'feeding:read',
+  },
+  {
     path: 'finance',
     label: 'Economía',
     permission: 'finance:read',
@@ -103,6 +119,13 @@ export const dashboardNavigation: {
     permission: 'users:read',
   },
   {
+    path: 'audit',
+    label: 'Auditoría',
+    icon: ClipboardList,
+    description: 'Quién hizo cada cambio y qué valores modificó.',
+    permission: 'audit:read',
+  },
+  {
     path: 'roles',
     label: 'Roles y permisos',
     icon: ShieldCheck,
@@ -112,7 +135,16 @@ export const dashboardNavigation: {
 ];
 
 export function navigationFor(permissions: readonly string[]) {
-  return dashboardNavigation.filter(
-    (item) => !item.permission || permissions.includes(item.permission),
+  return dashboardNavigation.filter((item) =>
+    item.path === 'reports'
+      ? [
+          'animals:read',
+          'health:read',
+          'breeding:read',
+          'finance:read',
+          'feeding:read',
+          'weights:read',
+        ].some((p) => permissions.includes(p))
+      : !item.permission || permissions.includes(item.permission),
   );
 }

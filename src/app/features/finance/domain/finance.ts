@@ -27,6 +27,7 @@ export interface Sale {
   date: string;
 }
 export interface MoneyRecord {
+  allocation_count?: number;
   id: string;
   category: Category;
   amount: string;

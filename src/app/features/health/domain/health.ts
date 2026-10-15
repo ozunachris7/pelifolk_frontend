@@ -39,12 +39,14 @@ export interface CaseDetail {
   activity: CaseActivity[];
   diagnoses: Diagnosis[];
   treatments: Treatment[];
+  followups?: Followup[];
 }
 export interface HealthHistory {
   animal: AnimalOption;
   observations: Observation[];
   diagnoses: Diagnosis[];
   treatments: Treatment[];
+  followups?: Followup[];
   cases: HealthCase[];
 }
 export const animalLabel = (a: AnimalOption) =>
@@ -171,3 +173,27 @@ export const noticeLabel = (status: NoticeStatus) =>
     scheduled: 'Programada',
     missing_birth_date: 'Falta nacimiento',
   })[status];
+
+export interface Followup {
+  id: string;
+  health_case_id: string;
+  animal: AnimalOption;
+  date: string;
+  evolution: 'improved' | 'unchanged' | 'worsened' | 'recovered';
+  treatment_result: 'not_assessed' | 'effective' | 'partially_effective' | 'not_effective';
+  notes: string;
+  next_review_date: string | null;
+  recorded_by: string;
+  created_at: string;
+}
+export const evolutionLabel = (v: Followup['evolution']) =>
+  ({ improved: 'Mejoró', unchanged: 'Sin cambios', worsened: 'Empeoró', recovered: 'Recuperado' })[
+    v
+  ];
+export const resultLabel = (v: Followup['treatment_result']) =>
+  ({
+    not_assessed: 'Aún no evaluado',
+    effective: 'Efectivo',
+    partially_effective: 'Parcialmente efectivo',
+    not_effective: 'Sin efecto observado',
+  })[v];

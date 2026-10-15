@@ -25,6 +25,7 @@ export interface AnimalInput {
   breeds: BreedShare[];
 }
 export interface Animal extends AnimalInput {
+  current_location?: { id: string; name: string; active: boolean; since: string } | null;
   id: string;
   created_at: string;
   breeds: (BreedShare & { name: string })[];
@@ -35,6 +36,7 @@ export interface Animal extends AnimalInput {
   purity: 'pure' | 'crossbred' | null;
 }
 export interface AnimalPage {
+  excluded_parent_ids?: string[];
   items: Animal[];
   total: number;
   offset: number;
@@ -46,6 +48,7 @@ export interface AnimalQuery {
   offset?: number;
   limit?: number;
   exclude_id?: string;
+  parent_of?: string;
   active?: 'true' | 'false' | '';
 }
 export interface AnimalRepository {

@@ -7,6 +7,9 @@ const ROLE_LABELS: Record<string, string> = {
   livestock_technician: 'Técnico pecuario',
 };
 const PERMISSION_LABELS: Record<string, string> = {
+  'audit:read': 'Consultar auditoría y cambios de todos los módulos',
+  'feeding:read': 'Consultar alimentación, precios e historial',
+  'feeding:write': 'Registrar alimentos, precios y consumos',
   'finance:read': 'Consultar economía, proveedores y categorías',
   'finance:write': 'Registrar y editar movimientos y catálogos económicos',
   'exits:read': 'Consultar salidas e historial',
@@ -15,8 +18,8 @@ const PERMISSION_LABELS: Record<string, string> = {
   'breeding:write': 'Registrar montas, gestaciones y partos',
   'health:read': 'Consultar observaciones y casos sanitarios',
   'health:write': 'Registrar observaciones y administrar casos sanitarios',
-  'weights:read': 'Consultar pesajes e historial',
-  'weights:write': 'Registrar pesajes',
+  'weights:read': 'Consultar pesajes, destetes e historial',
+  'weights:write': 'Registrar pesajes y destetes',
   'locations:read': 'Consultar ubicaciones',
   'locations:write': 'Crear y editar ubicaciones',
   'groups:read': 'Consultar lotes e historial',

@@ -1,3 +1,4 @@
+import { ManagementNav } from './management-nav';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -17,7 +18,7 @@ import {
 } from '../domain/weights';
 @Component({
   selector: 'app-weight-list',
-  imports: [ReactiveFormsModule, DatePipe, DecimalPipe, LucideAngularModule, Modal],
+  imports: [ReactiveFormsModule, DatePipe, DecimalPipe, LucideAngularModule, Modal, ManagementNav],
   templateUrl: './weight-list.html',
 })
 export class WeightList implements OnInit, OnDestroy {

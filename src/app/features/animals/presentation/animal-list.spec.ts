@@ -93,6 +93,9 @@ async function openForm(f: ComponentFixture<AnimalList>, selector = '[data-testi
   expect(parents.length).toBe(2);
   for (const request of parents) {
     expect(request.request.params.get('limit')).toBe('100');
+    expect(request.request.params.get('parent_of')).toBe(
+      selector.includes('Editar') ? ANIMAL.id : null,
+    );
     request.flush({ items: [], total: 0, offset: 0, limit: 100 });
   }
   await f.whenStable();
@@ -163,6 +166,9 @@ describe('Animal management', () => {
     await login();
     const f = await page();
     await openForm(f);
+    expect(element(f).querySelector('#animal-breed-0')).not.toBeNull();
+    expect(element(f).querySelector<HTMLInputElement>('#animal-percentage-0')!.value).toBe('100');
+    click(f, 'button[aria-label="Quitar raza 1"]');
     fill(f, 'animal-name', 'Nube');
     fill(f, 'animal-siniiga', 'MX999');
     submit(f);
@@ -230,6 +236,58 @@ describe('Animal management', () => {
     ).toBe('Katahdin');
     expect(element(f).querySelector<HTMLInputElement>('#animal-percentage-0')?.value).toBe('100');
   });
+  it('uses the edited animal for parent options and removes a cached descendant selection', async () => {
+    await login();
+    const f = await page();
+    click(f, 'button[aria-label^="Editar animal"]');
+    http.expectOne(`${api}/breeds`).flush([{ id: 1, name: 'Pelibuey' }]);
+    const requests = http.match((r) => r.url === `${api}/animals`);
+    const descendant = { ...ANIMAL, id: 'aurora', name: 'Aurora', breeds: [] };
+    for (const r of requests) {
+      expect(r.request.params.get('parent_of')).toBe(ANIMAL.id);
+      r.flush({
+        items: r.request.params.get('sex') === 'female' ? [descendant] : [],
+        total: 1,
+        offset: 0,
+        limit: 100,
+        excluded_parent_ids: [ANIMAL.id],
+      });
+    }
+    await f.whenStable();
+    f.detectChanges();
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector<HTMLOptionElement>('#animal-mother option[value=aurora]');
+      })
+      .toBeTruthy();
+    fill(f, 'animal-mother', 'aurora');
+    const searchButton = [...element(f).querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Buscar padres'),
+    )!;
+    searchButton.click();
+    f.detectChanges();
+    for (const r of http.match((r) => r.url === `${api}/animals`)) {
+      r.flush({
+        items: [],
+        total: 0,
+        offset: 0,
+        limit: 100,
+        excluded_parent_ids: [ANIMAL.id, 'aurora'],
+      });
+    }
+    await f.whenStable();
+    f.detectChanges();
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector<HTMLSelectElement>('#animal-mother')?.value;
+      })
+      .toBe('');
+    const mothers = element(f).querySelector<HTMLSelectElement>('#animal-mother')!;
+    expect(mothers.value).toBe('');
+    expect([...mothers.options].some((o) => o.value === 'aurora')).toBe(false);
+  });
   it('shows server detail and hides mutations for read-only users', async () => {
     await login(['animals:read']);
     const f = await page();
@@ -239,6 +297,9 @@ describe('Animal management', () => {
     http.expectOne(`${api}/animals/${ANIMAL.id}`).flush(ANIMAL);
     await f.whenStable();
     f.detectChanges();
+    http
+      .expectOne((r) => r.url === `${api}/animals/${ANIMAL.id}/decisions`)
+      .flush({ items: [], total: 0, offset: 0, limit: 25 });
     expect(element(f).querySelector('app-modal')?.textContent).toContain('Pelibuey');
   });
   it('does not request protected data without read permission', async () => {
@@ -253,6 +314,8 @@ describe('Animal management', () => {
     const f = await page();
     await openForm(f);
     fill(f, 'animal-name', 'Luna');
+    const breedSelect = element(f).querySelector<HTMLSelectElement>('#animal-breed-0')!;
+    fill(f, 'animal-breed-0', breedSelect.options[1].value);
     submit(f);
     http
       .expectOne({ url: `${api}/animals`, method: 'POST' })

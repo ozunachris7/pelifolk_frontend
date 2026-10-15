@@ -1,5 +1,8 @@
+import { KinshipNotice } from './kinship-notice';
+import { map, distinctUntilChanged } from 'rxjs';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideAngularModule, Plus, History as HistoryIcon, Trash2 } from 'lucide-angular';
 import { Session } from '../../../core/auth/session';
@@ -14,18 +17,20 @@ import {
   EventPage,
   History,
   Kind,
+  Kinship,
   animalLabel,
   kindLabel,
   resultLabel,
 } from '../domain/breeding';
 @Component({
   selector: 'app-breeding-list',
-  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, Modal],
+  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, Modal, RouterLink, KinshipNotice],
   templateUrl: './breeding-list.html',
 })
 export class BreedingList implements OnInit, OnDestroy {
   private readonly session = inject(Session);
   private readonly repo = inject(BreedingRepository);
+  private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   protected readonly canRead = computed(() => hasPermission(this.session.user(), 'breeding:read'));
   protected readonly canWrite = computed(
@@ -73,6 +78,38 @@ export class BreedingList implements OnInit, OnDestroy {
     birth_type_id: [0],
     offspring: this.offspring,
   });
+  protected readonly kinship = signal<Kinship | null>(null);
+  protected readonly kinshipLoading = signal(false);
+  protected readonly kinshipError = signal('');
+  private kinshipRequest = 0;
+  private readonly kinshipSubscription = this.form.valueChanges
+    .pipe(
+      map(() => [this.form.controls.animal_id.value, this.form.controls.male_id.value].join('|')),
+      distinctUntilChanged(),
+    )
+    .subscribe(() => {
+      void this.checkKinship();
+    });
+  protected async checkKinship() {
+    const request = ++this.kinshipRequest;
+    this.kinship.set(null);
+    this.kinshipError.set('');
+    this.kinshipLoading.set(false);
+    const female = this.form.controls.animal_id.value,
+      male = this.form.controls.male_id.value;
+    if (!this.formOpen() || this.formKind() !== 'mating' || !female || !male || this.destroyed)
+      return;
+    this.kinshipLoading.set(true);
+    try {
+      const value = await this.repo.kinship(female, male);
+      if (request === this.kinshipRequest) this.kinship.set(value);
+    } catch (e) {
+      if (request === this.kinshipRequest)
+        this.kinshipError.set(apiError(e, 'No se pudo comprobar el parentesco.'));
+    } finally {
+      if (request === this.kinshipRequest) this.kinshipLoading.set(false);
+    }
+  }
   private request = 0;
   private optionsRequest = 0;
   private matingRequest = 0;
@@ -102,10 +139,14 @@ export class BreedingList implements OnInit, OnDestroy {
     );
   }
   ngOnInit() {
+    const kind = this.route.snapshot.queryParamMap.get('kind');
+    if (kind === 'mating' || kind === 'pregnancy' || kind === 'birth') this.kind.set(kind);
     void this.load();
   }
   ngOnDestroy() {
     this.destroyed = true;
+    this.kinshipRequest++;
+    this.kinshipSubscription.unsubscribe();
     this.request++;
     this.optionsRequest++;
     this.matingRequest++;
@@ -161,12 +202,14 @@ export class BreedingList implements OnInit, OnDestroy {
     if (this.kind() === 'birth') this.offspring.enable({ emitEvent: false });
     else this.offspring.disable({ emitEvent: false });
     this.formOpen.set(true);
+    void this.checkKinship();
     void this.loadOptions();
   }
   protected closeForm() {
     if (!this.busy()) {
       this.optionsRequest++;
       this.matingRequest++;
+      this.kinshipRequest++;
       this.formOpen.set(false);
     }
   }
@@ -248,6 +291,10 @@ export class BreedingList implements OnInit, OnDestroy {
       date: v.date,
       notes: v.notes.trim() || null,
     };
+    if (kind === 'mating' && (this.kinshipLoading() || !this.kinship())) {
+      this.formError.set('Espera a comprobar el parentesco antes de guardar la monta.');
+      return;
+    }
     if (kind === 'mating') data = { ...data, male_id: v.male_id };
     else if (kind === 'pregnancy')
       data = { ...data, result: v.result, mating_event_id: v.mating_event_id || null };
@@ -268,6 +315,7 @@ export class BreedingList implements OnInit, OnDestroy {
     try {
       const saved = await this.repo.create(kind, data);
       if (this.destroyed) return;
+      this.kinshipRequest++;
       this.formOpen.set(false);
       this.success.set(
         kind === 'birth'

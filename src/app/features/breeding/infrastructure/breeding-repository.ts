@@ -2,7 +2,15 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom, timeout } from 'rxjs';
 import { API_URL } from '../../../core/http/api-url';
-import { Animal, BirthType, BreedingEvent, EventPage, History, Kind } from '../domain/breeding';
+import {
+  Animal,
+  BirthType,
+  BreedingEvent,
+  EventPage,
+  History,
+  Kind,
+  Kinship,
+} from '../domain/breeding';
 @Injectable()
 export class BreedingRepository {
   private readonly http = inject(HttpClient);
@@ -26,6 +34,13 @@ export class BreedingRepository {
   types() {
     return firstValueFrom(
       this.http.get<BirthType[]>(`${this.api}/breeding/birth-types`).pipe(timeout(15000)),
+    );
+  }
+  kinship(animal_id: string, male_id: string) {
+    return firstValueFrom(
+      this.http
+        .get<Kinship>(`${this.api}/breeding/kinship`, { params: { animal_id, male_id } })
+        .pipe(timeout(15000)),
     );
   }
   create(kind: Kind, input: Record<string, unknown>) {

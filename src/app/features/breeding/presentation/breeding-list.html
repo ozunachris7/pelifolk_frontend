@@ -44,6 +44,16 @@
           {{ tab === 'mating' ? 'Montas' : tab === 'pregnancy' ? 'Gestación' : 'Partos y crías' }}
         </button>
       }
+      <a
+        routerLink="/dashboard/breeding/upcoming-births"
+        class="border-b-2 border-transparent py-3 text-stone-500 hover:text-green-800 dark:hover:text-green-300"
+        >Partos próximos</a
+      >
+      <a
+        routerLink="/dashboard/breeding/performance"
+        class="border-b-2 border-transparent py-3 text-stone-500 hover:text-green-800 dark:hover:text-green-300"
+        >Desempeño</a
+      >
     </div>
     <form (submit)="$event.preventDefault(); load()" class="mb-6 flex max-w-lg items-end gap-3">
       <div class="min-w-0 flex-1">
@@ -105,6 +115,17 @@
                 <td class="p-4">
                   @if (event.male) {
                     {{ label(event.male) }}
+                  }
+                  @if (event.kind === 'mating') {
+                    @if (event.kinship; as check) {
+                      <div class="mt-5">
+                        <app-kinship-notice [value]="check" [historical]="true" />
+                      </div>
+                    } @else {
+                      <p class="mt-5 text-xs text-stone-500">
+                        Esta monta no tiene una comprobación de parentesco guardada.
+                      </p>
+                    }
                   }
                   @if (event.result) {
                     {{ resultLabel(event.result) }}
@@ -366,6 +387,22 @@
             </p>
           </div>
         }
+        @if (
+          formKind() === 'mating' && form.controls.animal_id.value && form.controls.male_id.value
+        ) {
+          @if (kinshipLoading()) {
+            <p role="status" class="text-sm text-stone-500">Comprobando padres y abuelos…</p>
+          }
+          @if (kinshipError()) {
+            <p role="alert" class="text-sm text-red-600">
+              {{ kinshipError() }}
+              <button type="button" (click)="checkKinship()" class="underline">Reintentar</button>
+            </p>
+          }
+          @if (kinship(); as check) {
+            <app-kinship-notice [value]="check" />
+          }
+        }
         <div>
           <label for="breeding-notes" class="mb-2 block text-xs">Notas</label
           ><textarea
@@ -404,6 +441,15 @@
     </p>
     @if (event.male) {
       <p class="mt-5 text-sm">Macho: {{ label(event.male) }}</p>
+    }
+    @if (event.kind === 'mating') {
+      @if (event.kinship; as check) {
+        <div class="mt-5"><app-kinship-notice [value]="check" [historical]="true" /></div>
+      } @else {
+        <p class="mt-5 text-xs text-stone-500">
+          Esta monta no tiene una comprobación de parentesco guardada.
+        </p>
+      }
     }
     @if (event.result) {
       <p class="mt-5 text-sm">Resultado: {{ resultLabel(event.result) }}</p>
@@ -452,6 +498,17 @@
               <p class="mt-2 text-xs">
                 @if (event.male) {
                   {{ label(event.animal) }} · {{ label(event.male) }}
+                }
+                @if (event.kind === 'mating') {
+                  @if (event.kinship; as check) {
+                    <div class="mt-5">
+                      <app-kinship-notice [value]="check" [historical]="true" />
+                    </div>
+                  } @else {
+                    <p class="mt-5 text-xs text-stone-500">
+                      Esta monta no tiene una comprobación de parentesco guardada.
+                    </p>
+                  }
                 }
                 @if (event.result) {
                   {{ resultLabel(event.result) }}

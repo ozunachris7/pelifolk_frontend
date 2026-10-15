@@ -122,6 +122,25 @@ describe('Reproduction', () => {
     fill(f, 'breeding-female', 'f1');
     fill(f, 'breeding-male', 'm1');
     fill(f, 'breeding-date', '2024-01-01');
+    http
+      .expectOne((r) => r.url.endsWith('/breeding/kinship'))
+      .flush({
+        female: FEMALE,
+        male: MALE,
+        depth: 2,
+        status: 'insufficient_data',
+        lineage_complete: false,
+        invalid_lineage: false,
+        missing_female: ['mother'],
+        missing_male: ['father'],
+        matches: [],
+      });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('Datos genealógicos incompletos');
     submit(f);
     const req = http.expectOne(`${api}/breeding/matings`);
     expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
@@ -142,6 +161,96 @@ describe('Reproduction', () => {
       })
       .toBeTruthy();
     expect(element(f).querySelector<HTMLInputElement>('#breeding-female')?.value).toBe('f1');
+  });
+  it('shows a shared parent and requires a successful check before saving', async () => {
+    await login();
+    const f = await fixture();
+    await open(f);
+    fill(f, 'breeding-female', 'f1');
+    fill(f, 'breeding-male', 'm1');
+    const request = http.expectOne((r) => r.url.endsWith('/breeding/kinship'));
+    expect(request.request.headers.get('Authorization')).toBe('Bearer test-token');
+    request.flush({}, { status: 503, statusText: 'Unavailable' });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('El servicio no está disponible');
+    submit(f);
+    http.expectNone((r) => r.url.endsWith('/breeding/matings'));
+    [...element(f).querySelectorAll('button')]
+      .find((b) => b.textContent?.includes('Reintentar'))!
+      .click();
+    http
+      .expectOne((r) => r.url.endsWith('/breeding/kinship'))
+      .flush({
+        female: FEMALE,
+        male: MALE,
+        depth: 2,
+        status: 'related',
+        lineage_complete: false,
+        invalid_lineage: false,
+        missing_female: ['father'],
+        missing_male: ['father'],
+        matches: [
+          {
+            kind: 'shared_parent',
+            ancestor: { id: 'a1', name: 'Aurora', siniiga: 'MX3', sex: 'female' },
+            female_paths: ['mother'],
+            male_paths: ['mother'],
+          },
+        ],
+      });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('Progenitor compartido · Aurora');
+    expect(element(f).textContent).toContain('Faltan datos de padres o abuelos');
+  });
+  it('ignores an old relationship check after changing the selected pair', async () => {
+    await login();
+    const f = await fixture();
+    await open(f);
+    fill(f, 'breeding-female', 'f1');
+    fill(f, 'breeding-male', 'm1');
+    const older = http.expectOne((r) => r.url.endsWith('/breeding/kinship'));
+    fill(f, 'breeding-male', '');
+    fill(f, 'breeding-male', 'm1');
+    const latest = http.expectOne((r) => r.url.endsWith('/breeding/kinship'));
+    latest.flush({
+      female: FEMALE,
+      male: MALE,
+      depth: 2,
+      status: 'insufficient_data',
+      lineage_complete: false,
+      invalid_lineage: false,
+      missing_female: ['mother'],
+      missing_male: ['father'],
+      matches: [],
+    });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('Datos genealógicos incompletos');
+    older.flush({
+      female: FEMALE,
+      male: MALE,
+      depth: 2,
+      status: 'related',
+      lineage_complete: true,
+      invalid_lineage: false,
+      missing_female: [],
+      missing_male: [],
+      matches: [],
+    });
+    await Promise.resolve();
+    f.detectChanges();
+    expect(element(f).textContent).not.toContain('Parentesco registrado entre estos animales');
   });
   it('registers two offspring together with optional father and birth weights', async () => {
     await login();

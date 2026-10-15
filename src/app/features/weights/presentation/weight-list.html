@@ -15,6 +15,7 @@
       </button>
     }
   </div>
+  <app-management-nav />
   @if (success()) {
     <p
       role="status"
@@ -77,6 +78,9 @@
                 </td>
                 <td class="whitespace-nowrap p-4 font-medium">
                   {{ weight.weight_kg | number: '1.2-2' }} kg
+                  @if (weight.is_weaning) {
+                    <span class="mt-1 block text-xs text-stone-500">Destete</span>
+                  }
                 </td>
                 <td class="p-4 text-stone-500">{{ weight.recorded_by }}</td>
                 <td class="p-4">
@@ -292,7 +296,12 @@
             @for (row of rows(); track row.id) {
               <tr class="border-t border-stone-200 dark:border-white/10">
                 <td class="whitespace-nowrap py-3">{{ row.date | date: 'dd/MM/yyyy' : 'UTC' }}</td>
-                <td class="px-2 py-3">{{ row.weight_kg | number: '1.2-2' }}</td>
+                <td class="px-2 py-3">
+                  {{ row.weight_kg | number: '1.2-2' }}
+                  @if (row.is_weaning) {
+                    <span class="block text-xs text-stone-500">Destete</span>
+                  }
+                </td>
                 <td class="px-2 py-3" [class.text-red-600]="row.gain !== null && row.gain < 0">
                   {{ row.gain === null ? '—' : (row.gain | number: '1.2-2') }}
                 </td>

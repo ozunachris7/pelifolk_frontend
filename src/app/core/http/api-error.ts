@@ -2,6 +2,45 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TimeoutError } from 'rxjs';
 
 const MESSAGES: Record<string, string> = {
+  'Weaning date must be after birth date': 'La fecha de destete debe ser posterior al nacimiento.',
+  'Animal already has a weaning record': 'Este animal ya tiene un destete registrado.',
+  'Weaning weight differs from existing daily weight':
+    'Ya hay un pesaje con otro valor en esa fecha. Consulta los pesajes y usa el mismo peso para registrar el destete.',
+  'Multiple weights exist on weaning date':
+    'Hay varios pesajes en esa fecha. Revisa el historial antes de registrar el destete.',
+  'Decision date is before birth date':
+    'La decisión no puede quedar antes del nacimiento del animal.',
+  'Birth date conflicts with decision history':
+    'El nacimiento no puede quedar después de una decisión registrada.',
+  'Health case is closed':
+    'El caso está cerrado. Vuelve a consultarlo antes de registrar el seguimiento.',
+  'Followup date is before case start': 'El seguimiento no puede quedar antes del inicio del caso.',
+  'Closed date is before a followup':
+    'El cierre no puede quedar antes de un seguimiento registrado.',
+  'Treatment result requires a recorded case treatment':
+    'Registra un tratamiento del caso antes de evaluar su resultado.',
+  'Location has assigned animals':
+    'Traslada primero a los animales antes de desactivar esta ubicación.',
+  'Movement date must be after the last location record':
+    'La fecha del traslado debe ser posterior al último registro de ubicación.',
+  'Animal is already at this location': 'El animal ya está en esa ubicación.',
+  'Birth date conflicts with location history':
+    'El nacimiento no puede quedar después de un registro de ubicación.',
+
+  'Feed not found': 'El alimento ya no está disponible.',
+  'Feed unit not found': 'La unidad no está disponible.',
+  'Feed already exists': 'Ya existe un alimento con ese nombre.',
+  'Feed unit has history':
+    'La unidad no se puede cambiar porque el alimento tiene precios o consumos registrados.',
+  'Feed price already exists on date':
+    'Ya hay un precio para esa fecha. Registra el siguiente precio con otra fecha de vigencia.',
+  'Feed has no price on feeding date':
+    'Registra un precio del alimento vigente en la fecha del consumo.',
+  'Group has no members on feeding date': 'El lote no tiene animales en la fecha del consumo.',
+  'Feeding date is before birth': 'El consumo no puede ser anterior al nacimiento del animal.',
+  'Birth date conflicts with feeding history':
+    'El nacimiento no puede quedar después de un consumo registrado.',
+
   'Finance category not found': 'La categoría ya no está disponible.',
   'Finance category already exists': 'Ya existe una categoría con ese nombre.',
   'Finance category has records':

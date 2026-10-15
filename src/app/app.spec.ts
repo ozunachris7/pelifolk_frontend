@@ -22,7 +22,7 @@ const USER: SessionUser = {
 };
 const PASSWORD = 'Created-user-password123';
 
-async function signIn(): Promise<void> {
+async function signIn(permissions = USER.permissions): Promise<void> {
   const result = TestBed.inject(Session).login(USER.email, PASSWORD);
   TestBed.inject(HttpTestingController)
     .expectOne(`${TestBed.inject(API_URL)}/auth/login`)
@@ -30,7 +30,7 @@ async function signIn(): Promise<void> {
       access_token: 'test-token',
       token_type: 'bearer',
       expires_in: 1800,
-      user: USER,
+      user: { ...USER, permissions },
     });
   await result;
 }
@@ -56,11 +56,13 @@ describe('App', () => {
   });
 
   it('should render the dashboard and navigate to a section', async () => {
-    await signIn();
+    await signIn(['animals:read']);
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/');
+    fixture.detectChanges();
+    flushSummary();
     await fixture.whenStable();
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
@@ -68,16 +70,33 @@ describe('App', () => {
     expect(compiled.querySelector('app-header header a')?.getAttribute('aria-label')).toBe(
       'Pelifolk, inicio',
     );
-    expect(compiled.querySelector('main h1')?.textContent).toBe('Resumen del rancho');
+    expect(compiled.querySelector('main h1')?.textContent?.trim()).toBe('Resumen del rancho');
     const reportsLink = compiled.querySelector<HTMLAnchorElement>(
       'app-sidebar a[href="/dashboard/reports"]',
     );
     expect(reportsLink).toBeTruthy();
     reportsLink!.click();
+    await expect.poll(() => router.url).toBe('/dashboard/reports');
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http
+      .expectOne(`${TestBed.inject(API_URL)}/reports/animals/options`)
+      .flush({ breeds: [], groups: [] });
+    http
+      .expectOne((r) => r.url === `${TestBed.inject(API_URL)}/reports/animals`)
+      .flush({
+        as_of: '2026-10-10',
+        items: [],
+        total: 0,
+        female: 0,
+        male: 0,
+        offset: 0,
+        limit: 25,
+      });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(router.url).toBe('/dashboard/reports');
-    expect(compiled.querySelector('main h1')?.textContent).toBe('Reportes');
+    expect(compiled.querySelector('main h1')?.textContent?.trim()).toBe('Reporte de animales');
     expect(reportsLink!.getAttribute('aria-current')).toBe('page');
   });
 
@@ -91,6 +110,8 @@ describe('App', () => {
       const fixture = TestBed.createComponent(App);
       fixture.detectChanges();
       await TestBed.inject(Router).navigateByUrl('/dashboard/overview');
+      fixture.detectChanges();
+      flushSummary();
       await fixture.whenStable();
       fixture.detectChanges();
       const element = fixture.nativeElement as HTMLElement;
@@ -155,7 +176,10 @@ describe('App', () => {
     const request = TestBed.inject(HttpTestingController).expectOne(
       `${TestBed.inject(API_URL)}/auth/login`,
     );
-    expect(request.request.body).toEqual({ email: USER.email, password: 'incorrect' });
+    expect(request.request.body).toEqual({
+      email: USER.email,
+      password: 'incorrect',
+    });
     request.flush(
       { detail: 'Invalid email or password' },
       { status: 401, statusText: 'Unauthorized' },
@@ -185,6 +209,8 @@ describe('App', () => {
     expect(TestBed.inject(Session).user()?.name).toBe('Juan');
     expect(sessionStorage.getItem('pelifolk-session')).not.toContain(PASSWORD);
     await router.navigateByUrl('/login');
+    fixture.detectChanges();
+    flushSummary();
     expect(router.url).toBe('/dashboard/overview');
   });
 
@@ -220,3 +246,19 @@ describe('App', () => {
     expect(TestBed.inject(Router).url).toBe('/login');
   });
 });
+
+function flushSummary() {
+  TestBed.inject(HttpTestingController)
+    .expectOne(`${TestBed.inject(API_URL)}/dashboard/summary`)
+    .flush({
+      as_of: '2026-10-10',
+      period_from: '2026-10-01',
+      period_to: '2026-10-10',
+      herd: null,
+      health: null,
+      breeding: null,
+      finance: null,
+      feeding: null,
+      activity: [],
+    });
+}

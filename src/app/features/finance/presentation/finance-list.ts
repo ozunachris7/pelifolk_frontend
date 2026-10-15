@@ -1,5 +1,7 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { AllocationEditor } from './allocation-editor';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideAngularModule, Plus, Pencil, Trash2, Eye } from 'lucide-angular';
 import { Session } from '../../../core/auth/session';
@@ -21,7 +23,15 @@ import {
 } from '../domain/finance';
 @Component({
   selector: 'app-finance-list',
-  imports: [CurrencyPipe, DatePipe, ReactiveFormsModule, LucideAngularModule, Modal],
+  imports: [
+    CurrencyPipe,
+    DatePipe,
+    ReactiveFormsModule,
+    LucideAngularModule,
+    Modal,
+    RouterLink,
+    AllocationEditor,
+  ],
   templateUrl: './finance-list.html',
 })
 export class FinanceList implements OnInit, OnDestroy {
@@ -61,6 +71,12 @@ export class FinanceList implements OnInit, OnDestroy {
   protected readonly deleteKind = signal<Kind>('expense');
   protected readonly formError = signal('');
   protected readonly detail = signal<MoneyRecord | null>(null);
+  protected readonly allocating = signal<MoneyRecord | null>(null);
+  protected allocationSaved() {
+    this.allocating.set(null);
+    this.success.set('Asignación del gasto guardada.');
+    void this.load();
+  }
   protected readonly supplierOptions = signal<Supplier[]>([]);
   protected readonly saleOptions = signal<Sale[]>([]);
   protected readonly optionQuery = signal('');

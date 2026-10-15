@@ -1,3 +1,4 @@
+import { Withdrawal } from '../../health/domain/withdrawal';
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -27,6 +28,13 @@ export class ExitRepository {
     return firstValueFrom(
       this.http
         .get<ExitAnimal[]>(`${this.api}/exits/animal-options`, { params: { q } })
+        .pipe(timeout(15000)),
+    );
+  }
+  withdrawal(id: string, date: string) {
+    return firstValueFrom(
+      this.http
+        .get<Withdrawal>(`${this.api}/exits/animals/${id}/withdrawal`, { params: { date } })
         .pipe(timeout(15000)),
     );
   }

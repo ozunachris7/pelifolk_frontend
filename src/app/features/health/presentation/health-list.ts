@@ -1,3 +1,5 @@
+import { ActivatedRoute } from '@angular/router';
+import { CaseFollowups } from './case-followups';
 import { HealthNav } from './health-nav';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
@@ -27,10 +29,11 @@ import {
 } from '../domain/health';
 @Component({
   selector: 'app-health-list',
-  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, Modal, HealthNav],
+  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, Modal, HealthNav, CaseFollowups],
   templateUrl: './health-list.html',
 })
 export class HealthList implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
   private readonly session = inject(Session);
   private readonly repo = inject(HealthRepository);
   private readonly fb = inject(FormBuilder);
@@ -265,6 +268,8 @@ export class HealthList implements OnInit, OnDestroy {
   private destroyed = false;
   ngOnInit() {
     void this.load();
+    const caseId = this.route.snapshot.queryParamMap.get('case_id');
+    if (caseId && this.canRead()) void this.openDetail(caseId);
   }
   ngOnDestroy() {
     this.destroyed = true;

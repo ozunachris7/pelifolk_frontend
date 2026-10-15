@@ -1,3 +1,5 @@
+import { Withdrawal, withdrawalLabel } from '../../health/domain/withdrawal';
+import { Subscription, map, distinctUntilChanged } from 'rxjs';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -65,15 +67,53 @@ export class ExitList implements OnInit, OnDestroy {
     date: [this.today, Validators.required],
     reason: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(5000)]],
   });
+  protected readonly withdrawal = signal<Withdrawal | null>(null);
+  protected readonly withdrawalLoading = signal(false);
+  protected readonly withdrawalError = signal('');
+  protected readonly withdrawalLabel = withdrawalLabel;
+  private withdrawalRequest = 0;
+  private formSubscription?: Subscription;
+  protected async checkWithdrawal() {
+    const request = ++this.withdrawalRequest;
+    const v = this.form.getRawValue();
+    this.withdrawal.set(null);
+    this.withdrawalError.set('');
+    this.withdrawalLoading.set(false);
+    if (!this.formOpen() || !v.animal_id || !v.date || !['sale', 'slaughter'].includes(v.exit_type))
+      return;
+    this.withdrawalLoading.set(true);
+    try {
+      const value = await this.repo.withdrawal(v.animal_id, v.date);
+      if (request === this.withdrawalRequest && !this.destroyed) this.withdrawal.set(value);
+    } catch (e) {
+      if (request === this.withdrawalRequest && !this.destroyed)
+        this.withdrawalError.set(apiError(e, 'No se pudo consultar el retiro sanitario.'));
+    } finally {
+      if (request === this.withdrawalRequest && !this.destroyed) this.withdrawalLoading.set(false);
+    }
+  }
   private listRequest = 0;
   private optionRequest = 0;
   private historyRequest = 0;
   private destroyed = false;
   ngOnInit() {
+    this.formSubscription = this.form.valueChanges
+      .pipe(
+        map(() => {
+          const v = this.form.getRawValue();
+          return [v.animal_id, v.date, v.exit_type].join('|');
+        }),
+        distinctUntilChanged(),
+      )
+      .subscribe(() => {
+        void this.checkWithdrawal();
+      });
     void this.load();
   }
   ngOnDestroy() {
     this.destroyed = true;
+    this.formSubscription?.unsubscribe();
+    this.withdrawalRequest++;
     this.listRequest++;
     this.optionRequest++;
     this.historyRequest++;
@@ -102,11 +142,13 @@ export class ExitList implements OnInit, OnDestroy {
     this.optionSearch.set('');
     this.optionReady.set(false);
     this.formOpen.set(true);
+    void this.checkWithdrawal();
     void this.loadOptions();
   }
   protected closeForm() {
     if (!this.busy()) {
       this.optionRequest++;
+      this.withdrawalRequest++;
       this.formOpen.set(false);
     }
   }
@@ -140,12 +182,20 @@ export class ExitList implements OnInit, OnDestroy {
       this.formError.set('La fecha no puede ser futura.');
       return;
     }
+    if (
+      ['sale', 'slaughter'].includes(v.exit_type) &&
+      (this.withdrawalLoading() || !this.withdrawal())
+    ) {
+      this.formError.set('Espera a consultar el retiro sanitario antes de guardar.');
+      return;
+    }
     this.busy.set(true);
     this.formError.set('');
     try {
       const saved = await this.repo.create({ ...v, reason: v.reason.trim() });
       if (this.destroyed) return;
       this.optionRequest++;
+      this.withdrawalRequest++;
       this.formOpen.set(false);
       this.success.set('Salida registrada. El animal quedó dado de baja del hato.');
       await this.load();

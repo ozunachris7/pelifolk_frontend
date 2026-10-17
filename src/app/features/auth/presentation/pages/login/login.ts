@@ -63,6 +63,8 @@ export class Login {
         this.error.set('No se pudo conectar con el servidor. Intenta nuevamente.');
       } else if (error instanceof HttpErrorResponse && error.status === 422) {
         this.error.set('Revisa el correo y la contraseña.');
+      } else if (error instanceof HttpErrorResponse && error.status === 429) {
+        this.error.set('Demasiados intentos. Espera unos segundos y vuelve a intentarlo.');
       } else {
         this.error.set('No se pudo iniciar sesión. Intenta nuevamente.');
       }

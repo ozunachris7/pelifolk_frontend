@@ -1,3 +1,4 @@
+import { HistoryRectification } from './history-rectification';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
@@ -20,6 +21,7 @@ const labels = {
 };
 type Module = keyof typeof labels;
 interface Item {
+  has_rectifications?: boolean;
   id: string;
   date: string;
   kind: string;
@@ -40,7 +42,7 @@ interface Page {
 }
 @Component({
   selector: 'app-animal-timeline',
-  imports: [DatePipe, ReactiveFormsModule, LucideAngularModule],
+  imports: [DatePipe, ReactiveFormsModule, LucideAngularModule, HistoryRectification],
   template: `
     <section class="mt-7 min-w-0 border-t border-stone-200 pt-5 dark:border-white/10">
       <div class="flex flex-wrap items-center justify-between gap-3">
@@ -63,6 +65,11 @@ interface Page {
           consultar. El alta y los cambios de estado usan su fecha de registro; el nacimiento
           muestra la fecha guardada actualmente.
         </p>
+        @if (rectificationSaved()) {
+          <p role="status" class="mt-4 text-xs text-stone-500">
+            Rectificación guardada. El original permanece conservado.
+          </p>
+        }
         <form [formGroup]="form" (ngSubmit)="search()" class="my-5 space-y-4">
           <div>
             <label for="timeline-module" class="mb-2 block text-xs">Área</label>
@@ -154,6 +161,13 @@ interface Page {
                 @if (entry.recorded_by) {
                   <p class="mt-2 text-xs text-stone-500">Registrado por {{ entry.recorded_by }}</p>
                 }
+                <app-history-rectification
+                  [animalId]="animalId()"
+                  [entryId]="entry.id"
+                  [hasRectifications]="!!entry.has_rectifications"
+                  (saved)="rectificationSaved.set(true); retry.update(increment)"
+                  (refreshRequested)="retry.update(increment)"
+                />
               </li>
             } @empty {
               <li class="py-5 text-xs text-stone-500">
@@ -198,6 +212,7 @@ export class AnimalTimeline {
   private readonly fb = inject(FormBuilder);
   protected readonly labels = labels;
   protected readonly history = History;
+  protected readonly rectificationSaved = signal(false);
   protected readonly modules = computed(() =>
     (Object.keys(labels) as Module[]).filter((m) =>
       this.session.user()?.permissions.includes(m + ':read'),

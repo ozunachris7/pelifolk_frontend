@@ -1,3 +1,5 @@
+import { ReactionSummary } from './reaction-summary';
+import { TreatmentDoses } from './treatment-doses';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -23,7 +25,15 @@ import {
 import { HealthNav } from './health-nav';
 @Component({
   selector: 'app-program-list',
-  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, Modal, HealthNav],
+  imports: [
+    ReactionSummary,
+    ReactiveFormsModule,
+    DatePipe,
+    LucideAngularModule,
+    Modal,
+    HealthNav,
+    TreatmentDoses,
+  ],
   templateUrl: './program-list.html',
 })
 export class ProgramList implements OnInit, OnDestroy {
@@ -31,8 +41,15 @@ export class ProgramList implements OnInit, OnDestroy {
   private readonly repo = inject(HealthRepository);
   private readonly fb = inject(FormBuilder);
   protected readonly canRead = computed(() => hasPermission(this.session.user(), 'health:read'));
+  protected readonly canApply = computed(
+    () =>
+      this.canRead() && hasPermission(this.session.user(), 'health:program_applications:create'),
+  );
+  protected readonly canDose = computed(
+    () => this.canRead() && hasPermission(this.session.user(), 'health:doses:create'),
+  );
   protected readonly canWrite = computed(
-    () => this.canRead() && hasPermission(this.session.user(), 'health:write'),
+    () => this.canRead() && hasPermission(this.session.user(), 'health:programs:write'),
   );
   protected readonly page = signal<Page<HealthProgram>>({
     items: [],
@@ -261,7 +278,7 @@ export class ProgramList implements OnInit, OnDestroy {
     }
   }
   protected async openApplication(notice: ProgramNotice) {
-    if (!notice.can_apply || !this.canWrite() || this.busy()) return;
+    if (!notice.can_apply || !this.canApply() || this.busy()) return;
     this.closeSchedule();
     this.selectedAnimal.set(notice);
     this.applicationOpen.set(true);
@@ -310,7 +327,7 @@ export class ProgramList implements OnInit, OnDestroy {
     if (
       !p ||
       !a ||
-      !this.canWrite() ||
+      !this.canApply() ||
       this.applicationForm.invalid ||
       !this.catalogs() ||
       this.busy()
@@ -362,6 +379,7 @@ export class ProgramList implements OnInit, OnDestroy {
     }
   }
   protected closeHistory() {
+    if (this.busy()) return;
     this.historyRequest++;
     this.historyOpen.set(false);
     this.returnSchedule();

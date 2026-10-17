@@ -11,6 +11,7 @@
     ><span aria-current="page" class="border-b-2 border-green-800 pb-3 dark:border-green-400"
       >Costos por animal o lote</span
     >
+    <a routerLink="/dashboard/finance/profitability" class="pb-3 text-stone-500">Resultado por animal</a>
   </nav>
   @if (!allowed) {
     <p class="py-12 text-sm text-stone-500">No tienes permiso para consultar Economía.</p>
@@ -136,8 +137,8 @@
         <p class="mb-6 text-xs leading-relaxed text-stone-500">
           {{
             p.kind === 'animal'
-              ? 'Incluye gastos directos del animal y de sus casos sanitarios. No incluye gastos o consumos de su lote.'
-              : 'Incluye gastos y consumos del lote completo. No suma los de sus miembros ni los reparte automáticamente entre animales.'
+              ? 'Los importes anteriores corresponden al animal y sus casos sanitarios. Consulta aparte el reparto calculado de sus lotes.'
+              : 'Los importes anteriores corresponden al lote completo. El reparto calculado entre sus miembros está disponible abajo.'
           }}
           Los gastos generales sin asignación no se incluyen. Los totales corresponden a todos los
           resultados filtrados.
@@ -148,6 +149,12 @@
             alimentación.
           </p>
         }
+        <app-group-cost-distribution
+          [revision]="distributionRevision()"
+          [kind]="p.kind"
+          [targetId]="p.target.id"
+          [dateFrom]="p.date_from || ''"
+          [dateTo]="p.date_to || ''" />
         <div
           class="min-w-0 overflow-x-auto rounded-xl border border-stone-200 dark:border-white/10">
           <table class="w-full min-w-[900px] text-left text-sm">

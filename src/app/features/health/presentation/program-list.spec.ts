@@ -48,7 +48,20 @@ const USER: SessionUser = {
   active: true,
   role_id: 'owner-role',
   role_name: 'owner',
-  permissions: ['health:read', 'health:write'],
+  permissions: [
+    'health:read',
+    'health:observations:create',
+    'health:cases:write',
+    'health:diagnoses:create',
+    'health:treatments:create',
+    'health:doses:create',
+    'health:followups:create',
+    'health:products:write',
+    'health:programs:write',
+    'health:program_applications:create',
+    'health:reactions:write',
+    'health:incidents:write',
+  ],
 };
 let http: HttpTestingController, api: string;
 function element(f: ComponentFixture<ProgramList>): HTMLElement {
@@ -66,14 +79,12 @@ function fill(f: ComponentFixture<ProgramList>, id: string, value: string) {
 }
 async function login(permissions = USER.permissions) {
   const pending = TestBed.inject(Session).login(USER.email, 'Test-password123');
-  http
-    .expectOne(`${api}/auth/login`)
-    .flush({
-      access_token: 'test-token',
-      token_type: 'bearer',
-      expires_in: 1800,
-      user: { ...USER, permissions },
-    });
+  http.expectOne(`${api}/auth/login`).flush({
+    access_token: 'test-token',
+    token_type: 'bearer',
+    expires_in: 1800,
+    user: { ...USER, permissions },
+  });
   await pending;
 }
 async function fixture() {
@@ -106,6 +117,9 @@ describe('Health programs', () => {
     api = TestBed.inject(API_URL);
   });
   afterEach(() => {
+    http
+      .match((r) => r.url.endsWith('/health/reactions'))
+      .forEach((r) => r.flush({ items: [], total: 0, offset: 0, limit: 5 }));
     http.verify();
     sessionStorage.removeItem('pelifolk-session');
   });
@@ -210,13 +224,11 @@ describe('Health programs', () => {
       })
       .toBe(true);
     click(f, 'button[aria-label^="Registrar aplicación"]');
-    http
-      .expectOne(`${api}/health/catalogs`)
-      .flush({
-        product_types: [{ id: 1, name: 'vaccine' }],
-        units: [{ id: 1, code: 'ml' }],
-        routes: [{ id: 1, name: 'subcutaneous' }],
-      });
+    http.expectOne(`${api}/health/catalogs`).flush({
+      product_types: [{ id: 1, name: 'vaccine' }],
+      units: [{ id: 1, code: 'ml' }],
+      routes: [{ id: 1, name: 'subcutaneous' }],
+    });
     await expect
       .poll(() => {
         f.detectChanges();

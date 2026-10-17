@@ -1,3 +1,7 @@
+import { IncidentSummary } from './incident-summary';
+import { ReactionSummary } from './reaction-summary';
+import { TreatmentDoses } from './treatment-doses';
+import { ObservationCase } from './observation-case';
 import { ActivatedRoute } from '@angular/router';
 import { CaseFollowups } from './case-followups';
 import { HealthNav } from './health-nav';
@@ -29,7 +33,18 @@ import {
 } from '../domain/health';
 @Component({
   selector: 'app-health-list',
-  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, Modal, HealthNav, CaseFollowups],
+  imports: [
+    IncidentSummary,
+    ReactionSummary,
+    ReactiveFormsModule,
+    DatePipe,
+    LucideAngularModule,
+    Modal,
+    HealthNav,
+    CaseFollowups,
+    ObservationCase,
+    TreatmentDoses,
+  ],
   templateUrl: './health-list.html',
 })
 export class HealthList implements OnInit, OnDestroy {
@@ -38,9 +53,15 @@ export class HealthList implements OnInit, OnDestroy {
   private readonly repo = inject(HealthRepository);
   private readonly fb = inject(FormBuilder);
   protected readonly canRead = computed(() => hasPermission(this.session.user(), 'health:read'));
-  protected readonly canWrite = computed(
-    () => this.canRead() && hasPermission(this.session.user(), 'health:write'),
-  );
+  protected canAction(action: string) {
+    return this.canRead() && hasPermission(this.session.user(), 'health:' + action);
+  }
+  protected readonly canObserve = computed(() => this.canAction('observations:create'));
+  protected readonly canCases = computed(() => this.canAction('cases:write'));
+  protected readonly canDiagnose = computed(() => this.canAction('diagnoses:create'));
+  protected readonly canTreat = computed(() => this.canAction('treatments:create'));
+  protected readonly canDose = computed(() => this.canAction('doses:create'));
+  protected readonly canFollowup = computed(() => this.canAction('followups:create'));
   protected readonly tab = signal<'cases' | 'observations'>('cases');
   protected readonly search = signal('');
   protected readonly status = signal('');
@@ -64,6 +85,14 @@ export class HealthList implements OnInit, OnDestroy {
   protected readonly error = signal('');
   protected readonly success = signal('');
   protected readonly formKind = signal<'case' | 'observation' | null>(null);
+  protected readonly sourceObservation = signal<Observation | null>(null);
+  protected async sourceLinked(caseId: string) {
+    this.sourceObservation.set(null);
+    this.success.set('Observación vinculada al caso sanitario.');
+    await this.load(this.page().offset);
+    if (!this.destroyed) await this.openDetail(caseId);
+  }
+
   protected readonly formError = signal('');
   protected readonly options = signal<AnimalOption[]>([]);
   protected readonly optionSearch = signal('');
@@ -103,7 +132,7 @@ export class HealthList implements OnInit, OnDestroy {
   });
   protected openDiagnosis() {
     const detail = this.detail();
-    if (!detail || detail.case.status === 'closed' || !this.canWrite() || this.busy()) return;
+    if (!detail || detail.case.status === 'closed' || !this.canDiagnose() || this.busy()) return;
     this.closeTreatment();
     this.diagnosisForm.reset({ date: this.today, diagnosis: '', severity: 'mild' });
     this.diagnosisError.set('');
@@ -112,7 +141,7 @@ export class HealthList implements OnInit, OnDestroy {
   protected async saveDiagnosis() {
     this.diagnosisForm.markAllAsTouched();
     const detail = this.detail();
-    if (!detail || this.diagnosisForm.invalid || !this.canWrite() || this.busy()) return;
+    if (!detail || this.diagnosisForm.invalid || !this.canDiagnose() || this.busy()) return;
     const values = this.diagnosisForm.getRawValue();
     if (values.date < detail.case.start_date || values.date > this.today) {
       this.diagnosisError.set('La fecha debe estar entre el inicio del caso y hoy.');
@@ -172,7 +201,7 @@ export class HealthList implements OnInit, OnDestroy {
   private productRequest = 0;
   protected async openTreatment() {
     const detail = this.detail();
-    if (!detail || detail.case.status === 'closed' || !this.canWrite() || this.busy()) return;
+    if (!detail || detail.case.status === 'closed' || !this.canTreat() || this.busy()) return;
     this.diagnosisOpen.set(false);
     this.treatmentOpen.set(true);
     this.treatmentError.set('');
@@ -234,7 +263,7 @@ export class HealthList implements OnInit, OnDestroy {
       !detail ||
       this.treatmentForm.invalid ||
       !this.treatmentCatalogs() ||
-      !this.canWrite() ||
+      !this.canTreat() ||
       this.busy()
     )
       return;
@@ -305,7 +334,7 @@ export class HealthList implements OnInit, OnDestroy {
     }
   }
   protected openForm(kind: 'case' | 'observation') {
-    if (!this.canWrite() || this.busy()) return;
+    if (!(kind === 'case' ? this.canCases() : this.canObserve()) || this.busy()) return;
     this.formKind.set(kind);
     this.formError.set('');
     this.optionSearch.set('');
@@ -340,7 +369,12 @@ export class HealthList implements OnInit, OnDestroy {
   }
   protected async save() {
     this.form.markAllAsTouched();
-    if (this.form.invalid || this.busy() || !this.canWrite()) return;
+    if (
+      this.form.invalid ||
+      this.busy() ||
+      !(this.formKind() === 'case' ? this.canCases() : this.canObserve())
+    )
+      return;
     const data = this.form.getRawValue(),
       kind = this.formKind();
     if (!kind) return;
@@ -409,7 +443,7 @@ export class HealthList implements OnInit, OnDestroy {
   }
   protected async updateStatus() {
     const detail = this.detail();
-    if (!detail || !this.canWrite() || this.busy()) return;
+    if (!detail || !this.canCases() || this.busy()) return;
     const values = this.statusForm.getRawValue();
     this.detailError.set('');
     if (values.status === detail.case.status) return;

@@ -10,6 +10,7 @@ import {
   MoneyRecord,
   Page,
   Sale,
+  SaleWeight,
   Summary,
   Supplier,
   SupplierInput,
@@ -86,6 +87,11 @@ export class FinanceRepository {
           params: this.params({ date_from, date_to }),
         })
         .pipe(timeout(15000)),
+    );
+  }
+  saleWeights(id: string) {
+    return firstValueFrom(
+      this.http.get<SaleWeight[]>(`${this.api}/finance/sales/${id}/weights`).pipe(timeout(15000)),
     );
   }
   sales(q: string, income_id?: string) {

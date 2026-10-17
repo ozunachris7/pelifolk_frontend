@@ -1,6 +1,9 @@
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom, timeout } from 'rxjs';
+import { API_URL } from '../../../core/http/api-url';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AllocationEditor } from './allocation-editor';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideAngularModule, Plus, Pencil, Trash2, Eye } from 'lucide-angular';
@@ -11,10 +14,12 @@ import { hasPermission } from '../../users/domain/access';
 import { FinanceRepository } from '../infrastructure/finance-repository';
 import {
   Category,
+  IncomeAnimal,
   Kind,
   MoneyRecord,
   Page,
   Sale,
+  SaleWeight,
   Summary,
   Supplier,
   Tab,
@@ -35,7 +40,10 @@ import {
   templateUrl: './finance-list.html',
 })
 export class FinanceList implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
   private readonly session = inject(Session);
+  private readonly http = inject(HttpClient);
+  private readonly api = inject(API_URL);
   private readonly repo = inject(FinanceRepository);
   private readonly fb = inject(FormBuilder);
   protected readonly canRead = computed(() => hasPermission(this.session.user(), 'finance:read'));
@@ -114,6 +122,10 @@ export class FinanceList implements OnInit, OnDestroy {
     description: ['', Validators.maxLength(5000)],
     supplier_id: [''],
     exit_event_id: [''],
+    animal_id: [''],
+    pricing_mode: ['total' as 'total' | 'per_kg'],
+    weight_event_id: [''],
+    price_per_kg: [''],
   });
   protected readonly supplierForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(150)]],
@@ -127,14 +139,132 @@ export class FinanceList implements OnInit, OnDestroy {
     Validators.pattern(/\S/),
     Validators.maxLength(80),
   ]);
+  protected readonly weights = signal<SaleWeight[]>([]);
+  protected readonly weightsLoading = signal(false);
+  protected readonly weightsError = signal('');
+  private weightsRequest = 0;
+  protected perKg() {
+    return this.formKind() === 'income' && this.moneyForm.controls.pricing_mode.value === 'per_kg';
+  }
+  protected preview() {
+    const v = this.moneyForm.getRawValue();
+    const w = this.weights().find((w) => w.id === v.weight_event_id);
+    if (!w || !/^\d+(\.\d{1,2})?$/.test(String(v.price_per_kg)) || Number(v.price_per_kg) <= 0)
+      return null;
+    const hundredths = (s: string) => {
+      const [whole, fraction = ''] = String(s).split('.');
+      return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));
+    };
+    const cents = (hundredths(w.weight_kg) * hundredths(v.price_per_kg) + 50n) / 100n;
+    return `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
+  }
+  protected async changePricing(resetWeight = true) {
+    const f = this.moneyForm.controls;
+    if (this.perKg()) f.amount.disable();
+    else f.amount.enable();
+    f.price_per_kg.setValidators(
+      this.perKg()
+        ? [
+            Validators.required,
+            Validators.min(0.01),
+            Validators.max(9999999999.99),
+            Validators.pattern(/^\d+(\.\d{1,2})?$/),
+          ]
+        : [],
+    );
+    f.weight_event_id.setValidators(this.perKg() ? [Validators.required] : []);
+    f.price_per_kg.updateValueAndValidity();
+    f.weight_event_id.updateValueAndValidity();
+    if (resetWeight) f.weight_event_id.setValue('');
+    const n = ++this.weightsRequest;
+    this.weights.set([]);
+    this.weightsError.set('');
+    this.weightsLoading.set(false);
+    if (!this.perKg() || !f.exit_event_id.value) return;
+    this.weightsLoading.set(true);
+    try {
+      const options = await this.repo.saleWeights(f.exit_event_id.value);
+      if (n === this.weightsRequest && !this.destroyed) this.weights.set(options);
+    } catch (e) {
+      if (n === this.weightsRequest && !this.destroyed)
+        this.weightsError.set(apiError(e, 'No se pudieron consultar los pesajes de salida.'));
+    } finally {
+      if (n === this.weightsRequest && !this.destroyed) this.weightsLoading.set(false);
+    }
+  }
+  protected readonly directAnimalOpen = signal(false);
+  protected readonly incomeAnimals = signal<IncomeAnimal[]>([]);
+  protected readonly animalQuery = signal('');
+  protected readonly animalLoading = signal(false);
+  protected readonly animalError = signal('');
+  private animalRequest = 0;
+  protected async findIncomeAnimals() {
+    const n = ++this.animalRequest;
+    this.animalLoading.set(true);
+    this.animalError.set('');
+    try {
+      const items = await firstValueFrom(
+        this.http
+          .get<IncomeAnimal[]>(`${this.api}/finance/allocation-options`, {
+            params: { kind: 'animal', q: this.animalQuery() },
+          })
+          .pipe(timeout(15000)),
+      );
+      if (n === this.animalRequest && !this.destroyed) {
+        const selected = this.incomeAnimals().find(
+          (a) => a.id === this.moneyForm.controls.animal_id.value,
+        );
+        this.incomeAnimals.set(
+          selected && !items.some((a) => a.id === selected.id) ? [selected, ...items] : items,
+        );
+      }
+    } catch (e) {
+      if (n === this.animalRequest && !this.destroyed)
+        this.animalError.set(apiError(e, 'No se pudieron consultar los animales.'));
+    } finally {
+      if (n === this.animalRequest && !this.destroyed) this.animalLoading.set(false);
+    }
+  }
+  protected toggleIncomeAnimal() {
+    this.directAnimalOpen.update((v) => !v);
+    if (this.directAnimalOpen()) void this.findIncomeAnimals();
+    else {
+      this.animalRequest++;
+      this.moneyForm.controls.animal_id.setValue('');
+    }
+  }
+  protected saleChanged() {
+    this.animalRequest++;
+    this.moneyForm.controls.animal_id.setValue('');
+    this.directAnimalOpen.set(false);
+    void this.changePricing();
+  }
   private request = 0;
   private optionsRequest = 0;
   private destroyed = false;
   ngOnInit() {
-    void this.load();
+    const id = this.route.snapshot.queryParamMap.get('income_id');
+    if (id) this.tab.set('incomes');
+    void this.load().then(() => {
+      if (id && this.canRead() && !this.destroyed) void this.requestedIncome(id);
+    });
+  }
+  private async requestedIncome(id: string) {
+    try {
+      const record = await firstValueFrom(
+        this.http.get<MoneyRecord>(`${this.api}/finance/incomes/${id}`).pipe(timeout(15000)),
+      );
+      if (this.destroyed) return;
+      if (this.canWrite()) this.openMoney(record);
+      else this.detail.set(record);
+    } catch (e) {
+      if (!this.destroyed) this.error.set(apiError(e, 'No se pudo consultar el ingreso.'));
+    }
   }
   ngOnDestroy() {
     this.destroyed = true;
+    this.animalRequest++;
+    this.weightsRequest++;
     this.request++;
     this.optionsRequest++;
   }
@@ -189,6 +319,12 @@ export class FinanceList implements OnInit, OnDestroy {
     if (!this.canWrite() || this.busy()) return;
     this.formKind.set(this.tab() === 'incomes' ? 'income' : 'expense');
     this.editingMoney.set(record);
+    this.animalRequest++;
+    this.directAnimalOpen.set(!!record?.animal && !record?.sale);
+    this.incomeAnimals.set(record?.animal ? [record.animal] : []);
+    this.animalQuery.set('');
+    this.animalError.set('');
+    this.animalLoading.set(false);
     this.formError.set('');
     this.optionQuery.set('');
     this.optionReady.set(false);
@@ -200,6 +336,7 @@ export class FinanceList implements OnInit, OnDestroy {
       Validators.max(9999999999.99),
       Validators.pattern(/^\d+(\.\d{1,2})?$/),
     ]);
+    this.moneyForm.controls.amount.enable();
     this.moneyForm.reset({
       category_id: record?.category.id ?? 0,
       amount: record?.amount ?? '',
@@ -207,7 +344,12 @@ export class FinanceList implements OnInit, OnDestroy {
       description: record?.description ?? '',
       supplier_id: record?.supplier?.id ?? '',
       exit_event_id: record?.sale?.id ?? '',
+      animal_id: record?.sale ? '' : (record?.animal?.id ?? ''),
+      pricing_mode: record?.sale_pricing ? 'per_kg' : 'total',
+      weight_event_id: record?.sale_pricing?.weight_event_id ?? '',
+      price_per_kg: record?.sale_pricing?.price_per_kg ?? '',
     });
+    void this.changePricing(false);
     this.modal.set('money');
     void this.loadOptions();
   }
@@ -235,6 +377,8 @@ export class FinanceList implements OnInit, OnDestroy {
   protected closeForm() {
     if (!this.busy()) {
       this.optionsRequest++;
+      this.animalRequest++;
+      this.weightsRequest++;
       this.modal.set(null);
     }
   }
@@ -285,21 +429,45 @@ export class FinanceList implements OnInit, OnDestroy {
       this.formError.set('La fecha no puede ser futura.');
       return;
     }
+    if (
+      this.perKg() &&
+      (!v.exit_event_id ||
+        this.weightsLoading() ||
+        this.weightsError() ||
+        !this.weights().some((w) => w.id === v.weight_event_id) ||
+        this.preview() === null)
+    ) {
+      this.formError.set(
+        'Selecciona la venta, un pesaje del día de salida y un precio por kilogramo válido.',
+      );
+      return;
+    }
     this.busy.set(true);
     this.formError.set('');
     try {
       const input = {
         category_id: v.category_id,
-        amount: String(v.amount),
+        ...(this.perKg()
+          ? {
+              pricing_mode: 'per_kg' as const,
+              weight_event_id: v.weight_event_id,
+              price_per_kg: String(v.price_per_kg),
+            }
+          : { amount: String(v.amount) }),
         date: v.date,
         description: v.description.trim() || null,
         ...(this.formKind() === 'expense'
           ? { supplier_id: v.supplier_id || null }
-          : { exit_event_id: v.exit_event_id || null }),
+          : {
+              exit_event_id: v.exit_event_id || null,
+              ...(!v.exit_event_id && v.animal_id ? { animal_id: v.animal_id } : {}),
+            }),
       };
       const saved = await this.repo.saveMoney(this.formKind(), input, this.editingMoney()?.id);
       if (this.destroyed) return;
       this.optionsRequest++;
+      this.animalRequest++;
+      this.weightsRequest++;
       this.modal.set(null);
       this.success.set(this.formKind() === 'expense' ? 'Gasto guardado.' : 'Ingreso guardado.');
       await this.load();

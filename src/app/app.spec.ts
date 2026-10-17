@@ -191,6 +191,17 @@ describe('App', () => {
       })
       .toContain('incorrectos');
     expect(TestBed.inject(Session).user()).toBeNull();
+    element.querySelector('form')!.dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    );
+    TestBed.inject(HttpTestingController)
+      .expectOne(`${TestBed.inject(API_URL)}/auth/login`)
+      .flush({ detail: 'Too many login attempts' }, { status: 429, statusText: 'Too Many Requests' });
+    await expect.poll(() => {
+      fixture.detectChanges();
+      return element.querySelector('[role="alert"]')?.textContent;
+    }).toContain('Demasiados intentos');
+    expect(TestBed.inject(Session).user()).toBeNull();
     fill('password', PASSWORD);
     element
       .querySelector('form')!

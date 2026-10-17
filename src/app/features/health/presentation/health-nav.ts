@@ -21,6 +21,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       class="border-b-2 border-transparent py-3"
       >Productos</a
     >
+    <a routerLink="/dashboard/health/ingredients" routerLinkActive="border-green-800" ariaCurrentWhenActive="page" class="border-b-2 border-transparent py-3">Principios activos</a>
     <a
       routerLink="/dashboard/health/programs"
       routerLinkActive="border-green-800"
@@ -34,6 +35,20 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       ariaCurrentWhenActive="page"
       class="border-b-2 border-transparent py-3"
       >Retiro sanitario</a
+    >
+    <a
+      routerLink="/dashboard/health/reactions"
+      routerLinkActive="border-green-800"
+      ariaCurrentWhenActive="page"
+      class="border-b-2 border-transparent py-3"
+      >Alergias y reacciones</a
+    >
+    <a
+      routerLink="/dashboard/health/incidents"
+      routerLinkActive="border-green-800"
+      ariaCurrentWhenActive="page"
+      class="border-b-2 border-transparent py-3"
+      >Incidentes</a
     >
     <a
       routerLink="/dashboard/health/reviews"

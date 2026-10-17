@@ -26,7 +26,20 @@ export interface Sale {
   siniiga: string | null;
   date: string;
 }
+export interface SaleWeight {
+  id: string;
+  date: string;
+  weight_kg: string;
+}
+export interface SalePricing {
+  weight_event_id: string;
+  weight_kg: string;
+  price_per_kg: string;
+}
+export interface IncomeAnimal {id:string;name:string|null;siniiga:string|null;}
 export interface MoneyRecord {
+  animal?: IncomeAnimal | null;
+  sale_pricing?: SalePricing | null;
   allocation_count?: number;
   id: string;
   category: Category;
@@ -58,11 +71,15 @@ export interface MoneyQuery {
 }
 export interface MoneyInput {
   category_id: number;
-  amount: string;
+  amount?: string;
   date: string;
   description: string | null;
   supplier_id?: string | null;
   exit_event_id?: string | null;
+  animal_id?: string | null;
+  pricing_mode?: 'total' | 'per_kg';
+  weight_event_id?: string;
+  price_per_kg?: string;
 }
 export const categoryLabel = (name: string) =>
   (

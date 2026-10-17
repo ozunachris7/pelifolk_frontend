@@ -235,18 +235,29 @@
               </button>
             } @else if (withdrawal(); as w) {
               <p class="mt-2">{{ withdrawalLabel(w.status) }}</p>
-              @if (w.release_date) {
+              @if (w.release_date && w.status !== 'unknown' && !w.in_treatment) {
                 <p>
                   Fecha estimada sin retiro pendiente: {{ w.release_date | date: 'dd/MM/yyyy' }}
                 </p>
               }
+              <p class="mt-1 text-xs">
+                Dosis registradas a la fecha: {{ w.application_count ?? 0 }}
+              </p>
+              @if (w.missing_applications_count) {
+                <p class="mt-1 text-xs">
+                  Tratamientos sin aplicaciones capturadas: {{ w.missing_applications_count }}
+                </p>
+              }
               @if (w.in_treatment) {
-                <p>El tratamiento aún está en curso; la fecha es una estimación.</p>
+                <p>
+                  La pauta aún está en curso; las siguientes aplicaciones recalcularán la
+                  referencia.
+                </p>
               }
               @if (w.status === 'unknown') {
                 <p>
-                  Hay registros sin un periodo histórico verificable. Consulta la etiqueta y al
-                  veterinario.
+                  Faltan aplicaciones o hay periodos, variaciones o pautas por verificar. Consulta
+                  el detalle sanitario antes de tomar la fecha como confirmada.
                 </p>
               }
               @if (w.status === 'pending') {

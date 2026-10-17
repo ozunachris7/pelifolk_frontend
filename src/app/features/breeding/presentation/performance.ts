@@ -1,3 +1,6 @@
+import { LucideAngularModule, Baby, ChartNoAxesCombined, ClipboardList } from 'lucide-angular';
+import { OffspringHealth } from './offspring-health';
+import { ChildHealthCounts, ParentHealthCounts } from '../domain/offspring-health';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, inject, OnDestroy, signal } from '@angular/core';
@@ -11,6 +14,7 @@ import { Modal } from '../../../shared/ui/modal/modal';
 import { Animal, animalLabel } from '../domain/breeding';
 import { exitLabel } from '../../exits/domain/exits';
 interface Metric {
+  health?: ParentHealthCounts;
   animal: Animal;
   is_breeder: boolean;
   status: string;
@@ -30,6 +34,7 @@ interface Metric {
   offspring_per_recorded_birth: string | null;
 }
 interface Page {
+  health_summary?: ParentHealthCounts;
   as_of: string;
   sex: string;
   date_from: string | null;
@@ -41,6 +46,7 @@ interface Page {
   limit: number;
 }
 interface Child {
+  health?: ChildHealthCounts;
   animal: Animal;
   birth_date: string | null;
   born_alive: boolean | null;
@@ -62,7 +68,15 @@ interface Children {
 }
 @Component({
   selector: 'app-performance',
-  imports: [DatePipe, DecimalPipe, ReactiveFormsModule, RouterLink, Modal],
+  imports: [
+    LucideAngularModule,
+    OffspringHealth,
+    DatePipe,
+    DecimalPipe,
+    ReactiveFormsModule,
+    RouterLink,
+    Modal,
+  ],
   templateUrl: './performance.html',
 })
 export class Performance implements OnDestroy {
@@ -76,6 +90,8 @@ export class Performance implements OnDestroy {
   private applied = { sex: 'female', q: '', status: 'all', date_from: '', date_to: '' };
   private childFilters = { date_from: '', date_to: '' };
   protected readonly allowed = !!this.session.user()?.permissions.includes('breeding:read');
+  protected readonly canHealth =
+    this.allowed && !!this.session.user()?.permissions.includes('health:read');
   protected readonly canGenealogy = !!this.session.user()?.permissions.includes('animals:read');
   protected readonly form = this.fb.nonNullable.group({
     q: '',
@@ -102,6 +118,9 @@ export class Performance implements OnDestroy {
   protected readonly childLoading = signal(false);
   protected readonly childError = signal('');
   protected readonly label = animalLabel;
+  protected readonly babyIcon = Baby;
+  protected readonly indicatorsIcon = ChartNoAxesCombined;
+  protected readonly evaluationsIcon = ClipboardList;
   protected readonly statusLabel = exitLabel;
   constructor() {
     if (this.allowed) void this.load();

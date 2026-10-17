@@ -1,3 +1,4 @@
+import { GroupCostDistribution } from './group-cost-distribution';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, inject, OnDestroy, signal } from '@angular/core';
@@ -35,7 +36,14 @@ interface Page {
 }
 @Component({
   selector: 'app-costs',
-  imports: [CurrencyPipe, DatePipe, ReactiveFormsModule, RouterLink, AllocationEditor],
+  imports: [
+    GroupCostDistribution,
+    CurrencyPipe,
+    DatePipe,
+    ReactiveFormsModule,
+    RouterLink,
+    AllocationEditor,
+  ],
   templateUrl: './costs.html',
 })
 export class Costs implements OnDestroy {
@@ -53,6 +61,7 @@ export class Costs implements OnDestroy {
   protected readonly options = signal<AllocationTarget[]>([]);
   protected readonly optionError = signal('');
   protected readonly optionsLoading = signal(false);
+  protected readonly distributionRevision = signal(0);
   protected readonly page = signal<Page | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal('');
@@ -124,7 +133,10 @@ export class Costs implements OnDestroy {
           .get<Page>(`${this.api}/finance/costs`, { params: { ...params, offset, limit: 25 } })
           .pipe(timeout(15000)),
       );
-      if (!this.destroyed && request === this.request) this.page.set(p);
+      if (!this.destroyed && request === this.request) {
+        this.page.set(p);
+        this.distributionRevision.update((v) => v + 1);
+      }
     } catch (e) {
       if (!this.destroyed && request === this.request)
         this.error.set(apiError(e, 'No se pudieron consultar los costos.'));

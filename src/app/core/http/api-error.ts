@@ -2,6 +2,44 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TimeoutError } from 'rxjs';
 
 const MESSAGES: Record<string, string> = {
+  'Income animal not found': 'El animal vinculado al ingreso ya no está disponible.',
+  'Income date is before animal birth':
+    'La fecha del ingreso no puede ser anterior al nacimiento del animal.',
+  'Product unit changed before price entry':
+    'La unidad del producto cambió. Actualiza la lista antes de registrar el precio.',
+  'Product price already exists on date':
+    'Ya existe un precio para esa fecha. Consulta el historial antes de continuar.',
+  'Product unit has price history':
+    'La unidad no se puede cambiar porque el producto tiene precios registrados.',
+  'Use the product price history to add a price':
+    'Agrega el precio desde el historial de precios del producto.',
+  'Active ingredient not found':
+    'El principio activo ya no está disponible. Actualiza la búsqueda.',
+  'Active ingredient already exists': 'Ya existe un principio activo con ese nombre.',
+  'Active ingredient is assigned to products':
+    'El principio activo está asignado a productos. Quita esas asignaciones antes de eliminarlo.',
+  'Treatment not found': 'El tratamiento no está disponible para este producto.',
+  'Treatment has been replaced':
+    'El tratamiento fue reemplazado. Consulta el historial actualizado.',
+  'Reopen case before recording a dose': 'Reabre el caso antes de registrar una dosis aplicada.',
+  'Dose date is before case start': 'La aplicación no puede quedar antes del inicio del caso.',
+  'Dose variation requires explanation':
+    'Explica en las notas por qué la aplicación difiere de la pauta indicada.',
+  'Dose already recorded at this time':
+    'Ya hay una dosis registrada para este tratamiento y producto a esa misma hora. Consulta la bitácora.',
+  'Closed date is before an applied dose': 'El caso no puede cerrarse antes de una dosis aplicada.',
+  'Birth date conflicts with applied dose history':
+    'El nacimiento no puede quedar después de una dosis aplicada.',
+
+  'Observation not found': 'La observación no está disponible.',
+  'Observation has been replaced':
+    'La observación fue reemplazada. Actualiza la lista antes de continuar.',
+  'Observation and case belong to different animals':
+    'La observación y el caso deben pertenecer al mismo animal.',
+  'Case start date is before source observation':
+    'El inicio del caso debe ser igual o posterior a la observación de origen.',
+  'Observation already linked to another case':
+    'Esta observación ya está vinculada a otro caso. Actualiza la lista para consultarlo.',
   'Weaning date must be after birth date': 'La fecha de destete debe ser posterior al nacimiento.',
   'Animal already has a weaning record': 'Este animal ya tiene un destete registrado.',
   'Weaning weight differs from existing daily weight':
@@ -86,6 +124,29 @@ const MESSAGES: Record<string, string> = {
   'Animal has left the herd': 'El animal tiene una salida registrada y ya no pertenece al hato.',
   'Application date must be after last program application':
     'La fecha debe ser posterior a la última aplicación de este programa.',
+  'Reaction date is before birth date': 'La reacción no puede ser anterior al nacimiento.',
+  'Applied dose not found': 'La dosis seleccionada ya no está disponible.',
+  'Applied dose belongs to another animal': 'La dosis debe pertenecer al mismo animal.',
+  'Reaction date is before applied dose': 'La reacción no puede ser anterior a la dosis vinculada.',
+  'Product differs from applied dose': 'El producto debe coincidir con la dosis vinculada.',
+  'Reaction not found': 'El reporte ya no está disponible.',
+  'Reaction follow-up is already closed': 'El seguimiento ya fue cerrado. Actualiza el listado.',
+  'Closure date is before reaction date': 'El cierre no puede ser anterior a la reacción.',
+  'Birth date conflicts with reaction history':
+    'El nacimiento no puede ser posterior a una reacción registrada.',
+  'Incident date is before birth date': 'El incidente no puede ser anterior al nacimiento.',
+  'Incident case belongs to another animal': 'Selecciona un caso del mismo animal.',
+  'Incident case not found': 'El caso relacionado ya no está disponible.',
+  'Incident not found': 'El incidente ya no está disponible.',
+  'Abortion incident requires a female': 'Un reporte de aborto debe corresponder a una hembra.',
+  'Sex conflicts with abortion history':
+    'El animal tiene un aborto reportado; no se puede cambiar a macho.',
+  'Birth date conflicts with incident history':
+    'El nacimiento no puede ser posterior a un incidente registrado.',
+  'Incident changed; reload before updating':
+    'El incidente recibió un seguimiento nuevo. Cierra y vuelve a abrir el detalle antes de guardar.',
+  'Follow-up date is before incident history':
+    'La fecha no puede ser anterior al incidente ni al último seguimiento.',
   'Product not found': 'El producto ya no está disponible.',
   'Product name already exists': 'Ya existe un producto con ese nombre.',
   'Product catalog entry not found': 'Selecciona un tipo y una unidad disponibles.',
@@ -137,6 +198,26 @@ const MESSAGES: Record<string, string> = {
   'Animal is no longer assigned to this group':
     'El animal ya no pertenece a este lote. Actualiza el listado.',
 
+  'Physical evaluation criteria changed; reload the form':
+    'Los criterios cambiaron. Cierra y vuelve a abrir el formulario.',
+  'Physical evaluation date is before birth date':
+    'La evaluación no puede ser anterior al nacimiento.',
+  'Birth date conflicts with physical evaluation history':
+    'El nacimiento no puede ser posterior a una evaluación física registrada.',
+  'Breeding assessment criteria changed; reload the form':
+    'Los criterios cambiaron. Cierra y vuelve a abrir el formulario.',
+  'Assessment birth not found': 'Selecciona un parto registrado disponible.',
+  'Assessment birth has been replaced': 'El parto fue sustituido. Selecciona el registro vigente.',
+  'Assessment date is before birth event': 'La evaluación no puede ser anterior al parto.',
+  'Assessment offspring does not belong to birth': 'Selecciona una cría del parto elegido.',
+  'Assessment date is before animal birth': 'La evaluación no puede ser anterior al nacimiento.',
+  'Birth date conflicts with breeding assessment history':
+    'El nacimiento no puede ser posterior a una evaluación materna o de cría.',
+  'Indicator dates cannot exceed observation cutoff':
+    'Las fechas del periodo no pueden superar la fecha de corte, y el corte no puede ser futuro.',
+  'Reproductive indicators require a female': 'Estos indicadores se consultan por hembra.',
+  'Offspring is not in this performance cohort':
+    'La cría no pertenece a este progenitor o al periodo seleccionado. Actualiza el reporte.',
   'Animal not found': 'El animal ya no está disponible.',
   'Breed not found': 'La raza seleccionada no está disponible.',
   'Breed is assigned to animals':
@@ -160,6 +241,19 @@ const MESSAGES: Record<string, string> = {
   'Role is assigned to users':
     'El rol tiene usuarios asignados. Cambia sus roles antes de eliminarlo.',
   'You cannot modify your own assigned role': 'No puedes modificar el rol que tienes asignado.',
+  'Health actions require health:read':
+    'Las acciones sanitarias requieren el permiso de consultar Sanidad.',
+  'Corrected data must differ from the original':
+    'Los datos corregidos deben ser distintos del registro original.',
+  'History entry not found': 'No se encontró el registro del historial.',
+  'History entry is unavailable or has changed; reload history':
+    'El registro cambió o ya fue sustituido. Recarga el historial.',
+  'History changed; reload the rectification before saving':
+    'El registro o sus aclaraciones cambiaron. Recarga la rectificación antes de guardar.',
+  'This entry only allows a historical clarification':
+    'Este registro solo permite agregar una aclaración histórica.',
+  'Rectification must preserve the original animal':
+    'La corrección debe conservar el mismo animal.',
   'Cannot grant or manage permissions you do not have':
     'Solo puedes administrar permisos que ya tienes.',
   'Cannot assign permissions you do not have':

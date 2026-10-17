@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, timeout } from 'rxjs';
 import { API_URL } from '../http/api-url';
 
@@ -19,7 +19,7 @@ export interface SessionUser {
   role_id: string;
   role_name: string;
   permissions: string[];
-  photoUrl?: string | null;
+  profile_photo_url?: string | null;
 }
 
 interface LoginResponse {
@@ -45,6 +45,12 @@ export class Session {
   private validation: Promise<boolean> | null = null;
   private readonly userState = signal<SessionUser | null>(null);
   readonly user = this.userState.asReadonly();
+  readonly photoUrl = computed(() => {
+    const path = this.userState()?.profile_photo_url;
+    if (!path || !/^\/upload\/photos_profile\/[a-z0-9]+\.webp$/.test(path)) return null;
+    const base = new URL(this.apiUrl, this.document.baseURI);
+    return new URL(path, base.origin).href;
+  });
 
   getAccessToken(): string | null {
     if (this.accessToken && Date.now() >= this.expiresAt) this.clearSession();

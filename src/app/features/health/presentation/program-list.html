@@ -402,7 +402,7 @@
                   </td>
                   <td class="p-3">
                     <div class="flex gap-2">
-                      @if (canWrite() && notice.can_apply) {
+                      @if (canApply() && notice.can_apply) {
                         <button
                           type="button"
                           (click)="openApplication(notice)"
@@ -459,6 +459,9 @@
     <p class="mb-5 text-sm text-stone-500">
       {{ selectedProgram()?.name }} · {{ selectedProgram()?.product?.name }}
     </p>
+    @if (selectedAnimal(); as selected) {
+      <app-reaction-summary [animalId]="selected.animal.id" />
+    }
     <form [formGroup]="applicationForm" (ngSubmit)="apply()">
       <fieldset [disabled]="busy() || catalogLoading()" class="min-w-0 space-y-5">
         @if (catalogLoading()) {
@@ -568,7 +571,7 @@
   >
 }
 @if (historyOpen()) {
-  <app-modal title="Aplicaciones del programa" (dismiss)="closeHistory()"
+  <app-modal title="Aplicaciones del programa" [busy]="busy()" (dismiss)="closeHistory()"
     ><p class="mb-2 text-lg font-medium">
       {{ selectedAnimal() ? label(selectedAnimal()!.animal) : '' }}
     </p>
@@ -589,6 +592,10 @@
             {{ catalogLabel(treatment.dose_unit_code) }} · {{ catalogLabel(treatment.route_name) }}
           </p>
           <p class="mt-2 text-xs text-stone-500">{{ treatment.recorded_by }}</p>
+          <app-treatment-doses
+            [treatment]="treatment"
+            [canWrite]="canDose()"
+            (busyChange)="busy.set($event)" />
         </li>
       } @empty {
         @if (!historyLoading() && !historyError()) {

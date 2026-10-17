@@ -75,9 +75,12 @@
               <th class="p-4 font-normal">Tipo</th>
               <th class="p-4 font-normal">Unidad</th>
               <th class="p-4 font-normal">Retiro</th>
+              @if (canPriceRead()) {
+                <th class="p-4 font-normal">Precio vigente</th>
+              }
               <th class="p-4 font-normal">Estado</th>
-              @if (canWrite()) {
-                <th class="p-4 font-normal">Editar</th>
+              @if (canWrite() || canPriceRead()) {
+                <th class="p-4 font-normal">Acciones</th>
               }
             </tr>
           </thead>
@@ -86,28 +89,70 @@
               <tr
                 [attr.data-product-id]="product.id"
                 class="border-t border-stone-100 dark:border-white/10">
-                <td class="max-w-xs break-words p-4 font-medium">{{ product.name }}</td>
+                <td class="max-w-xs break-words p-4 font-medium">
+                  {{ product.name }}
+                  <p class="mt-2 text-xs font-normal leading-5 text-stone-500">
+                    @for (i of product.ingredients || []; track i.id) {
+                      <span>{{ i.name }}{{ $last ? '' : ' · ' }}</span>
+                    } @empty {
+                      <span>Sin principios activos registrados</span>
+                    }
+                  </p>
+                </td>
                 <td class="p-4">{{ label(product.product_type_name) }}</td>
                 <td class="p-4">{{ label(product.unit_code) }}</td>
                 <td class="whitespace-nowrap p-4">{{ product.withdrawal_days }} días</td>
+                @if (canPriceRead()) {
+                  <td class="p-4 text-xs">
+                    @if (product.current_price; as price) {
+                      <span class="whitespace-nowrap"
+                        >{{ price.cost | currency: 'MXN' : 'symbol' : '1.2-2' }} /
+                        {{ label(product.unit_code) }}</span
+                      >
+                      <p class="mt-1 text-stone-500">
+                        Desde {{ price.effective_from | date: 'dd/MM/yyyy' : 'UTC' }}
+                      </p>
+                    } @else {
+                      <span class="text-stone-500">Sin precio vigente</span>
+                    }
+                  </td>
+                }
                 <td class="p-4 text-xs text-stone-500">
                   {{ product.active ? 'Activo' : 'Inactivo' }}
                 </td>
-                @if (canWrite()) {
+                @if (canWrite() || canPriceRead()) {
                   <td class="p-4">
-                    <button
-                      type="button"
-                      (click)="openForm(product)"
-                      [attr.aria-label]="'Editar ' + product.name"
-                      class="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-white/5">
-                      <lucide-icon [img]="pencil" [size]="18" />
-                    </button>
+                    <div class="flex gap-2">
+                      @if (canWrite()) {
+                        <button
+                          type="button"
+                          (click)="openForm(product)"
+                          [attr.aria-label]="'Editar ' + product.name"
+                          class="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-white/5">
+                          <lucide-icon [img]="pencil" [size]="18" />
+                        </button>
+                      }
+                      @if (canPriceRead()) {
+                        <button
+                          type="button"
+                          (click)="pricing.set(product)"
+                          [attr.aria-label]="'Precios de ' + product.name"
+                          title="Historial de precios"
+                          class="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-white/5">
+                          <lucide-icon [img]="coins" [size]="18" />
+                        </button>
+                      }
+                    </div>
                   </td>
                 }
               </tr>
             } @empty {
               <tr>
-                <td [attr.colspan]="canWrite() ? 6 : 5" class="p-12 text-center text-stone-500">
+                <td
+                  [attr.colspan]="
+                    5 + (canPriceRead() ? 1 : 0) + (canWrite() || canPriceRead() ? 1 : 0)
+                  "
+                  class="p-12 text-center text-stone-500">
                   No hay productos para estos filtros.
                 </td>
               </tr>
@@ -139,10 +184,12 @@
 @if (formOpen()) {
   <app-modal
     [title]="editing() ? 'Editar producto' : 'Nuevo producto'"
-    [busy]="busy()"
+    [busy]="busy() || ingredientSaving()"
     (dismiss)="closeForm()"
     ><form [formGroup]="form" (ngSubmit)="save()">
-      <fieldset [disabled]="busy() || catalogLoading()" class="min-w-0 space-y-5">
+      <fieldset
+        [disabled]="busy() || catalogLoading() || ingredientSaving()"
+        class="min-w-0 space-y-5">
         @if (catalogLoading()) {
           <p role="status" class="text-xs text-stone-500">Cargando catálogos…</p>
         }
@@ -194,6 +241,149 @@
             Registra el periodo de retiro indicado para el producto.
           </p>
         </div>
+        <section
+          aria-label="Composición actual del producto"
+          class="space-y-4 border-y border-stone-200 py-5 dark:border-white/10">
+          <div>
+            <h3 class="text-sm font-medium">Principios activos</h3>
+            <p class="mt-2 text-xs leading-5 text-stone-500">
+              Selecciona los indicados en la etiqueta. Esta es la composición actual del catálogo;
+              dejarla vacía significa sin registrar.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            @for (i of selectedIngredients(); track i.id) {
+              <button
+                type="button"
+                (click)="toggleIngredient(i)"
+                [attr.aria-label]="'Quitar ' + i.name"
+                class="inline-flex max-w-full items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-xs dark:border-white/15">
+                <span class="min-w-0 break-words">{{ i.name }}</span
+                ><lucide-icon [img]="removeIcon" [size]="14" />
+              </button>
+            }
+          </div>
+          <div>
+            <label for="product-ingredient-search" class="mb-2 block text-xs"
+              >Buscar principio activo</label
+            >
+            <div class="flex gap-2">
+              <input
+                id="product-ingredient-search"
+                [value]="ingredientQuery()"
+                (input)="ingredientQuery.set($any($event.target).value)"
+                (keydown.enter)="$event.preventDefault(); findIngredients()"
+                maxlength="120"
+                class="min-w-0 w-full rounded-lg border border-stone-200 bg-transparent px-3 py-3 text-sm dark:border-white/15" /><button
+                type="button"
+                (click)="findIngredients()"
+                [disabled]="ingredientLoading()"
+                class="rounded-lg border border-stone-200 px-3 py-2 text-xs dark:border-white/15">
+                Buscar
+              </button>
+            </div>
+          </div>
+          @if (ingredientLoading()) {
+            <p class="text-xs text-stone-500">Buscando principios activos…</p>
+          } @else {
+            <div class="space-y-3">
+              @for (i of ingredientOptions(); track i.id) {
+                <label class="flex items-center gap-3 text-sm"
+                  ><input
+                    type="checkbox"
+                    [checked]="selected(i.id)"
+                    (change)="toggleIngredient(i)"
+                    class="accent-green-900" /><span class="min-w-0 break-words">{{
+                    i.name
+                  }}</span></label
+                >
+              } @empty {
+                <p class="text-xs text-stone-500">
+                  Sin coincidencias. Puedes agregar un principio activo abajo.
+                </p>
+              }
+            </div>
+            @if (ingredientTotal() > 50) {
+              <p class="text-xs text-stone-500">
+                Se muestran 50 de {{ ingredientTotal() }}. Escribe parte del nombre para
+                encontrarlo.
+              </p>
+            }
+          }
+          <details class="border-t border-stone-200 pt-4 dark:border-white/10">
+            <summary class="cursor-pointer text-xs font-medium">
+              Agregar un principio activo al catálogo
+            </summary>
+            <div class="mt-4">
+              <label for="product-new-ingredient" class="mb-2 block text-xs"
+                >Nombre del principio activo</label
+              ><input
+                id="product-new-ingredient"
+                [formControl]="ingredientName"
+                (keydown.enter)="$event.preventDefault(); addIngredient()"
+                maxlength="120"
+                class="w-full rounded-lg border border-stone-200 bg-transparent px-3 py-3 text-sm dark:border-white/15" /><button
+                type="button"
+                (click)="addIngredient()"
+                [disabled]="ingredientSaving() || ingredientName.invalid"
+                class="mt-3 inline-flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-xs disabled:opacity-40 dark:border-white/15">
+                <lucide-icon [img]="plus" [size]="14" />{{
+                  ingredientSaving() ? 'Agregando…' : 'Agregar y seleccionar'
+                }}
+              </button>
+              <p class="mt-2 text-xs text-stone-500">
+                Se guarda en el catálogo. La asignación al producto se confirma al guardar el
+                producto.
+              </p>
+            </div>
+          </details>
+          @if (ingredientError()) {
+            <p role="alert" class="text-sm text-red-600">
+              {{ ingredientError() }}
+              <button type="button" (click)="findIngredients()" class="underline">
+                Reintentar búsqueda
+              </button>
+            </p>
+          }
+        </section>
+        @if (!editing() && canPriceWrite()) {
+          <section class="space-y-4 border-y border-stone-200 py-5 dark:border-white/10">
+            <label class="flex items-center gap-3 text-sm"
+              ><input
+                type="checkbox"
+                [checked]="withInitialPrice()"
+                (change)="withInitialPrice.set($any($event.target).checked)"
+                class="accent-green-900" />Registrar precio inicial</label
+            >
+            @if (withInitialPrice()) {
+              <div>
+                <label for="product-price-date" class="mb-2 block text-xs">Vigente desde *</label
+                ><input
+                  id="product-price-date"
+                  type="date"
+                  [formControl]="initialPrice.controls.effective_from"
+                  class="w-full rounded-lg border border-stone-200 bg-transparent px-3 py-3 text-sm dark:border-white/15" />
+              </div>
+              <div>
+                <label for="product-price-cost" class="mb-2 block text-xs"
+                  >Costo por 1 unidad del producto (MXN) *</label
+                ><input
+                  id="product-price-cost"
+                  type="number"
+                  [formControl]="initialPrice.controls.cost"
+                  min="0"
+                  max="9999999999.99"
+                  step="0.01"
+                  class="w-full rounded-lg border border-stone-200 bg-transparent px-3 py-3 text-sm dark:border-white/15" />
+              </div>
+              <p class="text-xs leading-5 text-stone-500">
+                Si la unidad elegida es ml, captura el costo por 1 ml, no el precio del frasco
+                completo. Puedes dejarlo sin registrar y agregarlo después en el historial de
+                precios.
+              </p>
+            }
+          </section>
+        }
         <label class="flex items-center gap-3 text-sm"
           ><input
             id="product-active"
@@ -227,4 +417,8 @@
       </fieldset>
     </form></app-modal
   >
+}
+
+@if (pricing(); as product) {
+  <app-product-prices [product]="product" (dismiss)="pricing.set(null)" (saved)="priceSaved()" />
 }

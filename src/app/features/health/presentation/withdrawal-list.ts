@@ -9,7 +9,12 @@ import { Session } from '../../../core/auth/session';
 import { hasPermission } from '../../users/domain/access';
 import { Modal } from '../../../shared/ui/modal/modal';
 import { HealthNav } from './health-nav';
-import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
+import {
+  Withdrawal,
+  withdrawalLabel,
+  withdrawalReviewReason,
+  withdrawalApplicationLabel,
+} from '../domain/withdrawal';
 @Component({
   selector: 'app-withdrawal-list',
   imports: [DatePipe, ReactiveFormsModule, HealthNav, Modal],
@@ -19,8 +24,8 @@ import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
       <p class="text-xs uppercase tracking-widest text-stone-500">Sanidad del hato</p>
       <h1 class="mt-2 text-2xl font-semibold">Retiro sanitario</h1>
       <p class="mt-2 max-w-3xl text-sm text-stone-500">
-        Consulta los periodos de retiro de los animales activos según sus tratamientos. La fecha
-        estimada contempla días completos después de la último día del tratamiento registrado.
+        Consulta el retiro a partir de la última dosis aplicada y los días guardados en cada
+        tratamiento. Los registros sin aplicaciones o con variaciones aparecen por verificar.
       </p>
     </header>
     @if (!canRead()) {
@@ -34,7 +39,10 @@ import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
           maxlength="100"
           class="min-w-0 rounded-lg border border-stone-200 px-3 py-2 dark:bg-stone-900"
         />
-        <button type="submit" class="rounded-lg bg-green-900 px-4 py-2 text-sm text-white">
+        <button
+          type="submit"
+          class="rounded-lg bg-green-900 px-4 py-2 text-sm font-medium text-white dark:bg-stone-100 dark:text-stone-950"
+        >
           Buscar
         </button>
       </form>
@@ -70,18 +78,32 @@ import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
                   >
                     {{ label(w.status) }}
                     @if (w.in_treatment) {
-                      <span class="block text-xs">Tratamiento en curso</span>
+                      <span class="block text-xs">Pauta aún en curso</span>
                     }
                   </td>
                   <td class="p-4 whitespace-nowrap">
-                    {{ w.release_date ? (w.release_date | date: 'dd/MM/yyyy') : '—' }}
+                    {{
+                      w.release_date && w.status !== 'unknown' && !w.in_treatment
+                        ? (w.release_date | date: 'dd/MM/yyyy' : 'UTC')
+                        : '—'
+                    }}
                     @if (w.unknown_count) {
                       <span class="block text-xs text-amber-700"
                         >{{ w.unknown_count }} por verificar</span
                       >
                     }
                   </td>
-                  <td class="p-4">{{ w.treatment_count }}</td>
+                  <td class="p-4">
+                    {{ w.treatment_count }}
+                    <span class="mt-1 block text-xs text-stone-500"
+                      >Dosis registradas: {{ w.application_count ?? 0 }}</span
+                    >
+                    @if (w.missing_applications_count) {
+                      <span class="mt-1 block text-xs text-amber-700 dark:text-amber-300"
+                        >Sin dosis: {{ w.missing_applications_count }}</span
+                      >
+                    }
+                  </td>
                   <td class="p-4">
                     <button
                       type="button"
@@ -124,9 +146,10 @@ import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
         </div>
       }
       <p class="mt-6 text-xs text-stone-500">
-        Los registros anteriores sin periodo guardado aparecen por verificar. Este cálculo no
-        certifica aptitud para consumo: confirma la etiqueta del producto y las indicaciones del
-        veterinario.
+        Se muestra la primera fecha completa después del periodo guardado, sin contar el día de
+        aplicación. Una pauta en curso no tiene fecha global de liberación; las siguientes dosis
+        recalculan la referencia. La bitácora puede estar incompleta. Este cálculo no certifica
+        aptitud para consumo: confirma la etiqueta y las indicaciones del veterinario.
       </p>
     }
     @if (open()) {
@@ -141,12 +164,24 @@ import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
           <p class="mb-4 font-medium">
             {{ w.animal.name || w.animal.siniiga || 'Animal' }} · {{ label(w.status) }}
           </p>
-          @for (t of w.items; track t.event_id + t.product_name) {
+          @for (t of w.items; track t.event_id + (t.product_id || t.product_name)) {
             <section class="border-t border-stone-200 py-4 dark:border-white/10">
               <h2 class="font-medium">{{ t.product_name }}</h2>
               <p class="mt-2 text-sm">
-                Inicio: {{ t.start_date | date: 'dd/MM/yyyy' }} · Último día:
-                {{ t.last_day | date: 'dd/MM/yyyy' }}
+                Inicio de pauta: {{ t.start_date | date: 'dd/MM/yyyy' : 'UTC' }} · Último día
+                previsto:
+                {{ t.last_day | date: 'dd/MM/yyyy' : 'UTC' }}
+              </p>
+              <p class="mt-2 text-sm" data-withdrawal-application>
+                Última aplicación:
+                {{
+                  t.last_applied_at
+                    ? applicationLabel(t.last_applied_at)
+                    : 'Sin aplicaciones registradas'
+                }}
+              </p>
+              <p class="mt-1 text-xs text-stone-500">
+                Dosis registradas: {{ t.application_count ?? 0 }}
               </p>
               <p class="mt-1 text-sm">
                 Periodo guardado:
@@ -155,9 +190,31 @@ import { Withdrawal, withdrawalLabel } from '../domain/withdrawal';
               <p class="mt-1 text-sm">
                 {{ label(t.status) }}
                 @if (t.release_date) {
-                  · Desde {{ t.release_date | date: 'dd/MM/yyyy' }}
+                  · Desde {{ t.release_date | date: 'dd/MM/yyyy' : 'UTC' }}
                 }
               </p>
+              @if (t.estimated_release_date && (!t.release_date || t.status === 'unknown')) {
+                <p class="mt-2 text-xs text-stone-500">
+                  Referencia desde la última dosis:
+                  {{ t.estimated_release_date | date: 'dd/MM/yyyy' : 'UTC' }}.
+                  {{
+                    t.status === 'unknown'
+                      ? 'Sujeta a revisión.'
+                      : 'Provisional mientras la pauta siga en curso.'
+                  }}
+                </p>
+              }
+              @if (!t.last_applied_at && t.planned_release_date) {
+                <p class="mt-2 text-xs text-stone-500">
+                  Referencia de pauta: {{ t.planned_release_date | date: 'dd/MM/yyyy' : 'UTC' }}. No
+                  confirma aplicaciones realizadas.
+                </p>
+              }
+              @for (reason of t.review_reasons || []; track reason) {
+                <p class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                  {{ reviewReason(reason) }}
+                </p>
+              }
             </section>
           } @empty {
             <p>No hay tratamientos registrados.</p>
@@ -175,6 +232,8 @@ export class WithdrawalList implements OnInit, OnDestroy {
   protected readonly canRead = computed(() => hasPermission(this.session.user(), 'health:read'));
   protected readonly search = this.fb.nonNullable.group({ q: [''] });
   protected readonly label = withdrawalLabel;
+  protected readonly reviewReason = withdrawalReviewReason;
+  protected readonly applicationLabel = withdrawalApplicationLabel;
   protected readonly page = signal<{
     items: Withdrawal[];
     total: number;

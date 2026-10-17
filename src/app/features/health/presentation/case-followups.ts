@@ -1,4 +1,5 @@
-import { Component, inject, input, OnDestroy, output, signal } from '@angular/core';
+import { Session } from '../../../core/auth/session';
+import { Component, computed, inject, input, OnDestroy, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,7 +15,7 @@ import { Followup, evolutionLabel, resultLabel } from '../domain/health';
     <section class="mb-7 border-t border-stone-200 pt-5 dark:border-white/10">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 class="text-sm font-medium">Evolución y revisiones</h3>
-        @if (canWrite() && !closed() && !open()) {
+        @if (allowedWrite() && !closed() && !open()) {
           <button
             type="button"
             data-testid="new-followup"
@@ -157,6 +158,13 @@ export class CaseFollowups implements OnDestroy {
   readonly startDate = input.required<string>();
   readonly closed = input(false);
   readonly canWrite = input(false);
+  private readonly session = inject(Session);
+  protected readonly allowedWrite = computed(
+    () =>
+      this.canWrite() &&
+      !!this.session.user()?.permissions.includes('health:read') &&
+      !!this.session.user()?.permissions.includes('health:followups:create'),
+  );
   readonly entries = input<Followup[]>([]);
   readonly showCaseLinks = input(false);
   readonly viewCase = output<string>();
@@ -187,7 +195,7 @@ export class CaseFollowups implements OnDestroy {
     this.destroyed = true;
   }
   protected start() {
-    if (!this.canWrite() || this.closed()) return;
+    if (!this.allowedWrite() || this.closed()) return;
     const next = this.entries()[0]?.next_review_date;
     this.form.reset({
       date: this.today,
@@ -201,7 +209,7 @@ export class CaseFollowups implements OnDestroy {
   }
   protected async save() {
     this.form.markAllAsTouched();
-    if (!this.canWrite() || this.closed() || this.busy()) return;
+    if (!this.allowedWrite() || this.closed() || this.busy()) return;
     if (this.form.invalid) {
       this.error.set('Completa la fecha, evolución y notas del seguimiento.');
       return;

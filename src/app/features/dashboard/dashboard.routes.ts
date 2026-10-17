@@ -18,6 +18,18 @@ export const dashboardRoutes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'overview' },
       {
+        path: 'profile',
+        title: 'Mi perfil | Pelifolk',
+        loadComponent: () => import('../profile/profile').then((m) => m.Profile),
+      },
+      { path: 'management-decisions', title: 'Decisiones vigentes | Pelifolk', loadComponent: () => import('../animals/presentation/decision-board').then(m => m.DecisionBoard) },
+      {
+        path: 'physical-evaluations',
+        title: 'Evaluaciones físicas | Pelifolk',
+        loadComponent: () =>
+          import('../animals/presentation/physical-list').then((m) => m.PhysicalList),
+      },
+      {
         path: 'animals',
         title: 'Animales | Pelifolk',
         providers: ANIMAL_PROVIDERS,
@@ -85,12 +97,25 @@ export const dashboardRoutes: Routes = [
         providers: [HealthRepository],
         loadComponent: () => import('../health/presentation/health-list').then((m) => m.HealthList),
       },
+      { path: 'health/ingredients', title: 'Principios activos | Pelifolk', providers: [HealthRepository], loadComponent: () => import('../health/presentation/ingredient-list').then(m=>m.IngredientList) },
       {
         path: 'health/products',
         title: 'Productos | Pelifolk',
         providers: [HealthRepository],
         loadComponent: () =>
           import('../health/presentation/product-list').then((m) => m.ProductList),
+      },
+      {
+        path: 'health/reactions',
+        title: 'Alergias y reacciones | Pelifolk',
+        loadComponent: () =>
+          import('../health/presentation/reaction-list').then((m) => m.ReactionList),
+      },
+      {
+        path: 'health/incidents',
+        title: 'Incidentes | Pelifolk',
+        loadComponent: () =>
+          import('../health/presentation/incident-list').then((m) => m.IncidentList),
       },
       {
         path: 'health/reviews',
@@ -109,6 +134,18 @@ export const dashboardRoutes: Routes = [
         providers: [HealthRepository],
         loadComponent: () =>
           import('../health/presentation/program-list').then((m) => m.ProgramList),
+      },
+      {
+        path: 'breeding/assessments',
+        title: 'Evaluaciones maternas y de crías | Pelifolk',
+        loadComponent: () =>
+          import('../breeding/presentation/assessment-list').then((m) => m.AssessmentList),
+      },
+      {
+        path: 'breeding/indicators',
+        title: 'Indicadores reproductivos | Pelifolk',
+        loadComponent: () =>
+          import('../breeding/presentation/indicators').then((m) => m.Indicators),
       },
       {
         path: 'breeding/performance',
@@ -136,6 +173,7 @@ export const dashboardRoutes: Routes = [
         providers: [ExitRepository],
         loadComponent: () => import('../exits/presentation/exit-list').then((m) => m.ExitList),
       },
+      { path: 'finance/profitability',title: 'Resultado por animal | Pelifolk',loadComponent: ()=>import('../finance/presentation/profitability').then(m=>m.Profitability) },
       {
         path: 'finance/costs',
         title: 'Costos por animal o lote | Pelifolk',

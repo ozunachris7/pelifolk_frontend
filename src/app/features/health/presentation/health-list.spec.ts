@@ -28,7 +28,20 @@ const USER: SessionUser = {
   active: true,
   role_id: 'owner-role',
   role_name: 'owner',
-  permissions: ['health:read', 'health:write'],
+  permissions: [
+    'health:read',
+    'health:observations:create',
+    'health:cases:write',
+    'health:diagnoses:create',
+    'health:treatments:create',
+    'health:doses:create',
+    'health:followups:create',
+    'health:products:write',
+    'health:programs:write',
+    'health:program_applications:create',
+    'health:reactions:write',
+    'health:incidents:write',
+  ],
 };
 let http: HttpTestingController, api: string;
 function element(f: ComponentFixture<HealthList>): HTMLElement {
@@ -84,8 +97,43 @@ describe('Health management', () => {
     api = TestBed.inject(API_URL);
   });
   afterEach(() => {
+    http
+      .match((r) => r.url.endsWith('/health/reactions'))
+      .forEach((r) => {
+        expect(r.request.params.get('animal_id')).toBe(CASE.animal.id);
+        r.flush({ items: [], total: 0, offset: 0, limit: 5 });
+      });
+    http
+      .match((r) => r.url.endsWith('/health/incidents'))
+      .forEach((r) => {
+        expect(r.request.params.get('animal_id')).toBe(CASE.animal.id);
+        r.flush({ items: [], total: 0, offset: 0, limit: 5 });
+      });
     http.verify();
     sessionStorage.removeItem('pelifolk-session');
+  });
+  it('allows observations without allowing case management or clinical actions', async () => {
+    await signedIn(['health:read', 'health:observations:create']);
+    const f = await fixture();
+    expect(element(f).querySelector('[data-testid=new-observation]')).not.toBeNull();
+    expect(element(f).querySelector('[data-testid=new-case]')).toBeNull();
+    const c = f.componentInstance as any;
+    expect(c.canDiagnose()).toBe(false);
+    expect(c.canTreat()).toBe(false);
+    expect(c.canDose()).toBe(false);
+    expect(c.canFollowup()).toBe(false);
+    c.openForm('case');
+    f.detectChanges();
+    expect(c.formKind()).toBeNull();
+  });
+  it('separates indications from actual doses and case state', async () => {
+    await signedIn(['health:read', 'health:treatments:create']);
+    const f = await fixture();
+    const c = f.componentInstance as any;
+    expect(c.canTreat()).toBe(true);
+    expect(c.canDose()).toBe(false);
+    expect(c.canCases()).toBe(false);
+    expect(c.canDiagnose()).toBe(false);
   });
   it('hides registration for readers and makes no health requests without access', async () => {
     await signedIn([]);
@@ -374,5 +422,72 @@ describe('Health management', () => {
       })
       .toBe(true);
     expect(element(f).querySelector('dialog')?.textContent).toContain('05/01/2024');
+  });
+  it('opens a linked case from an observation and displays its original author', async () => {
+    await signedIn();
+    const f = await fixture();
+    click(f, '[data-testid=observations-tab]');
+    const source = {
+      id: 'o1',
+      animal,
+      date: '2024-01-01',
+      observation: 'Hallazgo original.',
+      recorded_by: 'Trabajador',
+      health_case: null,
+    };
+    http
+      .expectOne((r) => r.url === `${api}/health/observations`)
+      .flush({ items: [source], total: 1, offset: 0, limit: 25 });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return !!element(f).querySelector('[data-attend-observation]');
+      })
+      .toBe(true);
+    click(f, '[data-attend-observation]');
+    fill(f, 'source-case-date', '2024-01-01');
+    fill(f, 'source-case-reason', 'Cojera');
+    element(f)
+      .querySelector('app-observation-case form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    f.detectChanges();
+    const req = http.expectOne((r) => r.url === `${api}/health/cases` && r.method === 'POST');
+    expect(req.request.body.observation_id).toBe('o1');
+    req.flush(CASE);
+    await expect
+      .poll(
+        () =>
+          http
+            .match((r) => r.url === `${api}/health/observations`)
+            .map((r) => {
+              r.flush({
+                items: [{ ...source, health_case: CASE }],
+                total: 1,
+                offset: 0,
+                limit: 25,
+              });
+              return true;
+            }).length,
+      )
+      .toBe(1);
+    await expect
+      .poll(
+        () =>
+          http.match(`${api}/health/cases/${CASE.id}`).map((r) => {
+            r.flush({ case: CASE, activity: [], observations: [source] });
+            return true;
+          }).length,
+      )
+      .toBe(1);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector('[data-source-observation]')?.textContent;
+      })
+      .toContain('Trabajador');
+    expect(element(f).querySelector('[data-source-observation]')?.textContent).toContain(
+      'Hallazgo original.',
+    );
+    expect(element(f).querySelector('app-observation-case')).toBeNull();
   });
 });

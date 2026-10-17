@@ -225,7 +225,7 @@
               <th class="p-4 font-normal">Fecha</th>
               <th class="p-4 font-normal">Categoría</th>
               <th class="p-4 font-normal">
-                {{ tab() === 'expense' ? 'Proveedor' : 'Venta vinculada' }}
+                {{ tab() === 'expense' ? 'Proveedor' : 'Animal vinculado' }}
               </th>
               <th class="p-4 font-normal">Descripción</th>
               <th class="p-4 text-right font-normal">Importe</th>
@@ -245,7 +245,15 @@
                       <p class="mt-1 text-xs text-stone-500">Inactivo</p>
                     }
                   } @else {
-                    <p>{{ r.sale ? saleLabel(r.sale) : 'Sin venta vinculada' }}</p>
+                    <p>
+                      {{
+                        r.sale
+                          ? saleLabel(r.sale)
+                          : r.animal
+                            ? r.animal.name || r.animal.siniiga || 'Sin identificación'
+                            : 'Sin animal vinculado'
+                      }}
+                    </p>
                   }
                 </td>
                 <td class="min-w-48 p-4">

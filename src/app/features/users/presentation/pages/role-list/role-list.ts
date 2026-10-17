@@ -113,6 +113,19 @@ export class RoleList implements OnInit {
   protected togglePermission(permission: string, event: Event): void {
     if (!this.canGrant(permission) || this.busy()) return;
     const checked = (event.target as HTMLInputElement).checked;
+    if (
+      permission.startsWith('health:') &&
+      permission !== 'health:read' &&
+      checked &&
+      !this.canGrant('health:read')
+    )
+      return;
+    if (permission === 'health:read' && !checked) {
+      this.selectedPermissions.update((values) => values.filter((p) => !p.startsWith('health:')));
+      return;
+    }
+    if (permission.startsWith('health:') && checked)
+      this.selectedPermissions.update((values) => [...new Set([...values, 'health:read'])]);
     this.selectedPermissions.update((values) =>
       checked
         ? [...new Set([...values, permission])]

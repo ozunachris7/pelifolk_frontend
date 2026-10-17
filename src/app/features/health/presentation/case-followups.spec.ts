@@ -14,7 +14,10 @@ describe('Clinical followups', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: Session, useValue: { user: () => ({ permissions: ['health:read'] }) } },
+        {
+          provide: Session,
+          useValue: { user: () => ({ permissions: ['health:read', 'health:followups:create'] }) },
+        },
       ],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);

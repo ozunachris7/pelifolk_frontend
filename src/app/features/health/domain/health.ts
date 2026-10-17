@@ -4,11 +4,18 @@ export interface AnimalOption {
   siniiga: string | null;
 }
 export type CaseStatus = 'open' | 'under_treatment' | 'closed';
+export interface LinkedCase {
+  id: string;
+  reason: string;
+  status: CaseStatus;
+  start_date: string;
+}
 export interface Observation {
   id: string;
   animal: AnimalOption;
   date: string;
   observation: string;
+  health_case?: LinkedCase | null;
   recorded_by: string;
 }
 export interface HealthCase {
@@ -35,6 +42,7 @@ export interface CaseActivity {
   closed_date: string | null;
 }
 export interface CaseDetail {
+  observations?: Observation[];
   case: HealthCase;
   activity: CaseActivity[];
   diagnoses: Diagnosis[];
@@ -80,7 +88,11 @@ export interface TreatmentCatalogs {
   units: Unit[];
   routes: CatalogItem[];
 }
+export interface Ingredient extends CatalogItem { product_count: number; }
+export interface ProductPrice { effective_from: string; cost: string; }
 export interface ProductInput {
+  initial_price?: ProductPrice;
+  ingredient_ids?: number[];
   name: string;
   product_type_id: number;
   unit_id: number;
@@ -88,6 +100,8 @@ export interface ProductInput {
   active: boolean;
 }
 export interface Product extends ProductInput {
+  current_price?: ProductPrice | null;
+  ingredients?: CatalogItem[];
   id: string;
   product_type_name: string;
   unit_code: string;

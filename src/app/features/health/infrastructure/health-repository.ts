@@ -8,6 +8,7 @@ import {
   ProgramSchedule,
   ProgramApplication,
   Product,
+  Ingredient,
   ProductInput,
   Treatment,
   TreatmentInput,
@@ -107,6 +108,14 @@ export class HealthRepository {
         .pipe(timeout(15000)),
     );
   }
+  ingredients(q = '', offset = 0, limit = 25) {
+    return firstValueFrom(this.http.get<Page<Ingredient>>(`${this.api}/health/ingredients`,{params:{q,offset,limit}}).pipe(timeout(15000)));
+  }
+  saveIngredient(name: string,id?: number) {
+    const path=`${this.api}/health/ingredients`;
+    return firstValueFrom((id ? this.http.put<Ingredient>(`${path}/${id}`,{name}) : this.http.post<Ingredient>(path,{name})).pipe(timeout(15000)));
+  }
+  deleteIngredient(id: number) { return firstValueFrom(this.http.delete<void>(`${this.api}/health/ingredients/${id}`).pipe(timeout(15000))); }
   saveProduct(input: ProductInput, id?: string) {
     return firstValueFrom(
       (id

@@ -314,4 +314,140 @@ describe('Finance', () => {
       })
       .toContain('Inactivo');
   });
+
+  async function kilogramForm() {
+    await login();
+    const f = await fixture();
+    click(f, '[data-tab=incomes]');
+    await flushMoney(f, 'incomes');
+    click(f, '[data-testid=new-finance]');
+    http
+      .expectOne((r) => r.url === `${api}/finance/sale-options`)
+      .flush([SALE, { ...SALE, id: 's2', animal_name: 'Lucero' }]);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector<HTMLSelectElement>('#money-sale')?.options.length;
+      })
+      .toBe(3);
+    categorySelect(f);
+    fill(f, 'money-date', '2024-06-01');
+    fill(f, 'money-pricing', 'per_kg');
+    fill(f, 'money-sale', 's1');
+    return f;
+  }
+  it('previews exact rounding and sends evidence for server calculation without a manual amount', async () => {
+    const f = await kilogramForm();
+    http
+      .expectOne(`${api}/finance/sales/s1/weights`)
+      .flush([{ id: 'w1', date: '2024-06-01', weight_kg: '35.25' }]);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector<HTMLSelectElement>('#money-weight')?.options.length;
+      })
+      .toBe(2);
+    fill(f, 'money-weight', 'w1');
+    fill(f, 'money-kg-price', '65.50');
+    expect(element(f).querySelector('output')?.textContent).toContain('2,308.88');
+    expect(element(f).querySelector('#money-amount')).toBeNull();
+    submit(f);
+    const r = http.expectOne(`${api}/finance/incomes`);
+    expect(r.request.body).toEqual({
+      category_id: 1,
+      date: '2024-06-01',
+      description: null,
+      exit_event_id: 's1',
+      pricing_mode: 'per_kg',
+      weight_event_id: 'w1',
+      price_per_kg: '65.5',
+    });
+    r.flush({ detail: 'Sale already has an income' }, { status: 409, statusText: 'Conflict' });
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector('#money-kg-price') !== null;
+      })
+      .toBe(true);
+  });
+  it('ignores stale weight responses when the selected sale changes', async () => {
+    const f = await kilogramForm();
+    const first = http.expectOne(`${api}/finance/sales/s1/weights`);
+    fill(f, 'money-sale', 's2');
+    const second = http.expectOne(`${api}/finance/sales/s2/weights`);
+    second.flush([{ id: 'w2', date: '2024-06-01', weight_kg: '40.00' }]);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector('#money-weight')?.textContent;
+      })
+      .toContain('40.00');
+    first.flush([{ id: 'w1', date: '2024-06-01', weight_kg: '35.25' }]);
+    await Promise.resolve();
+    f.detectChanges();
+    expect(element(f).querySelector('#money-weight')?.textContent).not.toContain('35.25');
+    fill(f, 'money-kg-price', '65');
+    submit(f);
+    http.expectNone(`${api}/finance/incomes`);
+  });
+  it('prevents saving without sale-day weights and restores total-price entry', async () => {
+    const f = await kilogramForm();
+    http.expectOne(`${api}/finance/sales/s1/weights`).flush([]);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).textContent;
+      })
+      .toContain('Si no tiene pesaje');
+    fill(f, 'money-kg-price', '65');
+    submit(f);
+    http.expectNone(`${api}/finance/incomes`);
+    fill(f, 'money-pricing', 'total');
+    fill(f, 'money-amount', '2000');
+    submit(f);
+    const r = http.expectOne(`${api}/finance/incomes`);
+    expect(r.request.body.amount).toBe('2000');
+    expect(r.request.body.weight_event_id).toBeUndefined();
+    r.flush({ detail: 'Sale already has an income' }, { status: 409, statusText: 'Conflict' });
+  });
+
+  it('links a non-sale income directly to one animal', async () => {
+    await login();
+    const f = await fixture();
+    click(f, '[data-tab=incomes]');
+    await flushMoney(f, 'incomes');
+    click(f, '[data-testid=new-finance]');
+    http.expectOne((r) => r.url === `${api}/finance/sale-options`).flush([]);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector('#money-sale') !== null;
+      })
+      .toBe(true);
+    const toggle = Array.from(element(f).querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Vincular ingreso a un animal'),
+    )!;
+    toggle.click();
+    f.detectChanges();
+    http
+      .expectOne((r) => r.url.endsWith('/allocation-options') && r.params.get('kind') === 'animal')
+      .flush([{ id: 'a1', name: 'Luna', siniiga: 'MX1' }]);
+    await expect
+      .poll(() => {
+        f.detectChanges();
+        return element(f).querySelector<HTMLSelectElement>('#income-animal')?.options.length;
+      })
+      .toBe(2);
+    categorySelect(f);
+    fill(f, 'money-amount', '200');
+    fill(f, 'money-date', '2024-06-01');
+    fill(f, 'income-animal', 'a1');
+    submit(f);
+    const r = http.expectOne(`${api}/finance/incomes`);
+    expect(r.request.body.animal_id).toBe('a1');
+    expect(r.request.body.exit_event_id).toBeNull();
+    r.flush({ detail: 'Conflict' }, { status: 409, statusText: 'Conflict' });
+    await Promise.resolve();
+    f.destroy();
+  });
 });

@@ -20,7 +20,7 @@
   </div>
   <nav
     aria-label="Gestión del hato"
-    class="mb-7 flex gap-7 border-b border-stone-200 text-sm dark:border-white/10">
+    class="mb-7 flex flex-wrap gap-7 border-b border-stone-200 text-sm dark:border-white/10">
     <a
       routerLink="/dashboard/animals"
       class="pb-4 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
@@ -31,6 +31,8 @@
       class="border-b-2 border-green-800 pb-4 font-medium text-green-900 dark:border-green-200 dark:text-green-200"
       >Razas</a
     >
+    <a routerLink="/dashboard/physical-evaluations" class="pb-4 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white">Evaluaciones físicas</a>
+  <a routerLink="/dashboard/management-decisions" class="pb-4 text-stone-500">Decisiones vigentes</a>
   </nav>
   @if (success()) {
     <div

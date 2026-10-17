@@ -1,3 +1,7 @@
+import { AssessmentSummary } from '../../breeding/presentation/assessment-summary';
+import { PhysicalSummary } from './physical-summary';
+import { IncidentSummary } from '../../health/presentation/incident-summary';
+import { ReactionSummary } from '../../health/presentation/reaction-summary';
 import { AnimalTimeline } from "./animal-timeline";
 import { AnimalWeaning } from "./animal-weaning";
 import { AnimalDecisions } from "./animal-decisions";
@@ -10,7 +14,7 @@ import {
   OnInit,
   signal,
 } from "@angular/core";
-import { RouterLink } from "@angular/router";
+import { ActivatedRoute, RouterLink } from "@angular/router";
 import { DatePipe } from "@angular/common";
 import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
 import {
@@ -41,6 +45,10 @@ import {
 @Component({
   selector: "app-animal-list",
   imports: [
+    AssessmentSummary,
+    PhysicalSummary,
+    IncidentSummary,
+    ReactionSummary,
     ReactiveFormsModule,
     RouterLink,
     DatePipe,
@@ -53,6 +61,7 @@ import {
   templateUrl: "./animal-list.html",
 })
 export class AnimalList implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
   private readonly session = inject(Session);
   private readonly management = inject(ManageAnimals);
   private readonly fb = inject(FormBuilder);
@@ -135,6 +144,8 @@ export class AnimalList implements OnInit, OnDestroy {
   private destroyed = false;
 
   ngOnInit() {
+    const id = this.route.snapshot.queryParamMap.get("animal_id");
+    if (id && this.canRead()) void this.showDetail({id});
     void this.load();
   }
   ngOnDestroy() {
@@ -201,7 +212,7 @@ export class AnimalList implements OnInit, OnDestroy {
     this.page.update((page) => Math.max(0, page + delta));
     void this.load();
   }
-  protected async showDetail(animal: Animal) {
+  protected async showDetail(animal: Pick<Animal, "id">) {
     const request = ++this.detailRequest;
     this.error.set("");
     try {

@@ -180,6 +180,11 @@
         </div>
         <div>
           <h3 class="mb-3 text-xs font-medium">Permisos del rol</h3>
+          <p class="mb-4 text-xs leading-5 text-stone-500">
+            Las acciones de Sanidad se autorizan por separado y requieren consultar Sanidad. Al
+            seleccionar una acción se activa su consulta; al quitar la consulta se retiran sus
+            acciones.
+          </p>
           <div class="space-y-3">
             @for (permission of permissions(); track permission) {
               <label

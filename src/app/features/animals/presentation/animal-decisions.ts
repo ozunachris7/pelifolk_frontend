@@ -91,7 +91,7 @@ interface DecisionPage {
               reproductores, Ubicaciones o Lotes para separaciones y Salidas para ventas.
             </p>
             <p class="text-xs text-stone-500">
-              Cada decisión permanece en el historial. Para aclararla o cambiar el criterio, agrega
+              La última decisión por fecha de conservar, descartar, separar o prever venta aparece en Decisiones vigentes. Motivo de compra y Otra decisión son antecedentes y no la sustituyen. Cada decisión permanece en el historial. Para aclararla o cambiar el criterio, agrega
               un nuevo registro.
             </p>
             @if (formError()) {
@@ -100,7 +100,7 @@ interface DecisionPage {
             <div class="flex flex-wrap justify-end gap-3">
               <button type="button" (click)="open.set(false)" class="px-3 py-3 text-xs">
                 Cancelar</button
-              ><button type="submit" class="rounded-lg bg-green-900 px-4 py-3 text-xs text-white">
+              ><button type="submit" class="rounded-lg bg-green-900 px-4 py-3 text-xs font-medium text-white dark:bg-stone-100 dark:text-stone-950">
                 {{ busy() ? 'Guardando…' : 'Guardar decisión' }}
               </button>
             </div>

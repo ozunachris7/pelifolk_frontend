@@ -86,6 +86,14 @@
                 {{ signedIn() ? 'Sesión activa' : 'Sin sesión iniciada' }}
               </p>
             </div>
+            @if (signedIn()) {
+              <a
+                routerLink="/dashboard/profile"
+                (click)="closeMenu()"
+                class="mt-1 flex items-center gap-3 rounded-xl px-3 py-3 text-xs font-medium text-stone-700 hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-amber-600 dark:text-stone-200 dark:hover:bg-white/5">
+                <lucide-icon [img]="userIcon" [size]="18" aria-hidden="true" /> Mi perfil
+              </a>
+            }
             <button
               class="mt-1 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-medium text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-500 disabled:cursor-default disabled:opacity-40 dark:text-red-300 dark:hover:bg-red-500/10"
               type="button"
